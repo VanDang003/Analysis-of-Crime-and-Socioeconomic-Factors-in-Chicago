@@ -270,8 +270,15 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
     # Recalculate number of columns based on items per column
     legend_cols = math.ceil(len(labels_to_show) / items_per_column)
 
+    if no_groups:
+        feat_title = 'Features'
+        non_zero = 'Non-zero Features'
+    else:
+        feat_title = 'Groups'
+        non_zero = 'Non-zero Groups'
+
     # Create the legend
-    legend_title = "Non-zero Features" if show_nonzero_only else "Features"
+    legend_title = f"{non_zero}" if show_nonzero_only else f"{feat_title}"
     legend = legend_ax.legend(proxy_artists, labels_to_show,
                               loc='upper left',
                               bbox_to_anchor=(0, 1),
@@ -480,7 +487,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     plt.xlabel('Actual Crime Rate')
     plt.ylabel('Predicted Crime Rate')
     plt.title('Actual vs Predicted Values')
-    plt.grid(True)
+    plt.grid(color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
 
     # Plot residuals
     plt.subplot(2, 2, 2)
@@ -489,7 +496,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     plt.xlabel('Actual Crime Rate')
     plt.ylabel('Residuals')
     plt.title('Residuals Plot')
-    plt.grid(True)
+    plt.grid(color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
 
     # Plot distribution of residuals
     plt.subplot(2, 2, 3)
@@ -497,7 +504,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     plt.xlabel('Residuals')
     plt.ylabel('Frequency')
     plt.title('Distribution of Residuals')
-    plt.grid(True)
+    plt.grid(color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
 
     # Plot MAPE by actual value
     plt.subplot(2, 2, 4)
@@ -507,10 +514,10 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     plt.ylabel('Absolute Percentage Error')
     plt.title('Error Distribution by Crime Rate')
     plt.legend()
-    plt.grid(True)
+    plt.grid(color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
 
     plt.tight_layout()
-    plt.grid(color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
+
     if save_plot:
         plt.savefig(f'output/xgboost_model_diagnostics - {title}.png')
     plt.show()
