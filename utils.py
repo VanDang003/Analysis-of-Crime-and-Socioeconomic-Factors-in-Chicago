@@ -351,8 +351,8 @@ def coef_analysis(X, coefs, feature_names, group_names):
 def xgboost_bayes(X, y, title='', save_plot=False):
     from sklearn.model_selection import KFold, cross_val_score, cross_val_predict
     from bayes_opt import BayesianOptimization
+    import scipy.stats as stats
 
-    # Use a random state for reproducibility
     RANDOM_STATE = 42
     np.random.seed(RANDOM_STATE)
 
@@ -375,7 +375,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
 
     print(f"Default Model CV MAPE: {mean_cv_score_default:.4f} ± {std_cv_score_default:.4f} (or {mean_cv_score_default * 100:.2f}% ± {std_cv_score_default * 100:.2f}%)")
 
-    # Define a function to be optimized
+    # function to be optimized
     def xgb_evaluate(n_estimators, max_depth, learning_rate, subsample, colsample_bytree):
         # Convert parameters to appropriate types
         params = {
@@ -388,7 +388,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
             'random_state': RANDOM_STATE
         }
 
-        # Create model with current parameters
+        # create model with current parameters
         model = xgb.XGBRegressor(**params)
 
         # Use K-fold cross-validation
@@ -447,7 +447,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
         scoring='neg_mean_absolute_percentage_error'
     )
 
-    # Calculate mean and std of CV scores for best model
+    # Calculate mean and stdv of CV scores for best model
     mean_cv_score_best = -np.mean(cv_scores_best)
     std_cv_score_best = np.std(cv_scores_best)
 
@@ -463,13 +463,30 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     # Fit the final model on the entire dataset
     best_model.fit(X, y)
 
-    # Print the top 5 feature importances
+    # Calculate Pearson correlation for each feature with the target
+    correlations = {}
+    for col in X.columns:
+        corr, _ = stats.pearsonr(X[col], y)
+        correlations[col] = corr
+
+    # Print the top n feature importances with correlation sign
+    n = 20
     feature_importance = best_model.feature_importances_
     feature_names = X.columns
-    importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': feature_importance})
+    importance_df = pd.DataFrame({
+        'Feature': feature_names,
+        'Importance': feature_importance,
+        'Correlation': [correlations[feat] for feat in feature_names]
+    })
+
+    # Add sign from correlation to importance
+    importance_df['Signed_Importance'] = importance_df['Importance'] * np.sign(importance_df['Correlation'])
     importance_df = importance_df.sort_values('Importance', ascending=False)
-    print("\nTop 5 feature importances:")
-    print(importance_df.head(5))
+
+    top_feat = importance_df.head(n).reset_index(drop=True)
+
+    print(f"\nTop {n} feature importances:")
+    print(top_feat)
 
     # Get residuals from cross-validation predictions
     residuals = y - y_pred_cv
@@ -534,7 +551,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     })
     print(high_error_df.describe())'''
 
-    return best_model
+    return best_model, top_feat
 
 
 #%%
@@ -566,3 +583,71 @@ def calculate_vif(df, features_to_drop=None):
     vif_data_sorted = vif_data.sort_values(by='VIF', ascending=True).reset_index(drop=True)
 
     return vif_data_sorted, df
+
+
+#%%
+def crime_rate_month(merged_data, data_csv_clean):
+    base_merged = merged_data[['CA', 'GEOG', '2000_POP', '2010_POP', '2020_POP', 'TOT_POP']].copy()
+    # Estimate population for each year based on 2010 and 2020 pop
+    for year in range(2015, 2026):
+        if year <= 2020:
+            # Interpolate between 2010 and 2020 for years 2015-2020
+            weight_2020 = (year - 2010) / 10
+            weight_2010 = 1 - weight_2020
+            base_merged[f'{year}_POP'] = (weight_2010 * base_merged['2010_POP']) + (weight_2020 * base_merged['2020_POP'])
+        else:
+            # Extrapolate for 2021-2025 based on 2010-2020 trend
+            # Calculate annual growth rate between 2010-2020
+            annual_growth_rate = (base_merged['2020_POP'] / base_merged['2010_POP']) ** (1/10) - 1
+            # Apply compound growth for years beyond 2020
+            years_after_2020 = year - 2020
+            base_merged[f'{year}_POP'] = base_merged['2020_POP'] * (1 + annual_growth_rate) ** years_after_2020
+
+    # Create a detailed crime dataframe with crime rate by community area, crime type, year, and month
+    detailed_crime = data_csv_clean.groupby(['Community Area', 'Primary Type', 'Year', 'Month'], observed=True)['ID'].count().reset_index()
+    detailed_crime.columns = ['CA', 'Crime_Type', 'Year', 'Month', 'Crime_Count']
+    detailed_crime['CA'] = detailed_crime['CA'].astype('int')
+
+    # Create a time identifier and format crime type for easier filtering
+    detailed_crime['Time_ID'] = detailed_crime['Year'].astype(str) + '-' + detailed_crime['Month'].astype(str).str.zfill(2)
+    detailed_crime['Crime_Type'] = detailed_crime['Crime_Type'].str.replace(' ', '_').str.replace('/', '_')
+
+    # Create a mapping of years to population columns
+    year_pop_map = {year: f'{year}_POP' for year in range(2015, 2026)}
+
+    # Apply the correct population figure based on the year
+    detailed_crime = pd.merge(detailed_crime, base_merged, on='CA', how='left')
+    detailed_crime['Year_POP'] = detailed_crime.apply(lambda row: row[year_pop_map[row['Year']]], axis=1)
+
+    # Calculate rate using year-appropriate population
+    detailed_crime['Crime_Rate'] = detailed_crime['Crime_Count'] / detailed_crime['Year_POP'] * 1000
+
+    # Remove pop columns
+    pop_cols = [i for i in detailed_crime.columns.tolist() if 'POP' in i]
+    detailed_crime.drop(columns=pop_cols, inplace=True)
+
+    return detailed_crime
+
+#%%
+def corr_pairs(df, features=None):
+    if features is not None:
+        # correlation matrix
+        corr_matrix = df[features].corr()
+    else:
+        corr_matrix = df.corr()
+
+    # mask for correlations >= 0.5 (in absolute value)
+    high_corr_mask = (abs(corr_matrix) >= 0.5) & (abs(corr_matrix) < 1.0)  # Excluding self-correlations (which are always 1.0)
+
+    # pairs of highly correlated features
+    high_corr_pairs = []
+    for i in range(len(features)):
+        for j in range(i+1, len(features)):  # only upper triangle to avoid duplicates
+            if high_corr_mask.iloc[i, j]:
+                high_corr_pairs.append((features[i], features[j], corr_matrix.iloc[i, j]))
+
+    # Display results
+    for feat1, feat2, corr_val in high_corr_pairs:
+        print(f"{feat1} & {feat2}: {corr_val:.3f}")
+    return high_corr_pairs
+

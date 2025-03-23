@@ -242,6 +242,24 @@ def create_distilled_features(df):
     Returns:
     pandas.DataFrame: A DataFrame with distilled features
     """
+    import numpy as np
+    import pandas as pd
+
+    """
+    references:
+    All ratios, rates, percentages, averages, or aggregates as defined in: American Community Survey and Puerto Rico Community Survey 2023 Subject Definitions (2023_ACSSubjectDefinitions.pdf)
+
+    age_dependency: 2023_ACSSubjectDefinitions.pdf
+    diversity_index: using Gini index, which is defined 2023_ACSSubjectDefinitions.pdf
+    
+    social_vulnerability_index: Social Vulnerability Index: A User’s Guide
+    
+    housing_age_diversity: ACS 2023
+    housing_type_diversity: ACS 2023
+    gentrification_risk: IDENTIFICATION OF INDICES TO QUANTIFY GENTRIFICATION
+
+    """
+
     # Create a new DataFrame for distilled features
     distilled_features = pd.DataFrame(index=df.index)
 
@@ -251,93 +269,99 @@ def create_distilled_features(df):
 
     # Age Cohort (8)
     distilled_features['median_age'] = df['MED_AGE']
-    distilled_features['age_dependency'] = (df['UND5'] + df['OV85']) / (df['A20_34'] + df['A35_49'] + df['A50_64'])
-    distilled_features['youth_ratio'] = df['UND5'] / distilled_features['recent_population']
-    distilled_features['senior_ratio'] = (df['A65_74'] + df['A75_84'] + df['OV85']) / distilled_features['recent_population']
+    # Fix: Add small epsilon to prevent division by zero
+    epsilon = 1e-10
+    working_age_pop = df['A20_34'] + df['A35_49'] + df['A50_64']
+    distilled_features['age_dependency'] = (df['UND5'] + df['OV85']) / (working_age_pop + epsilon)
+    distilled_features['youth_ratio'] = df['UND5'] / (distilled_features['recent_population'] + epsilon)
+    distilled_features['senior_ratio'] = (df['A65_74'] + df['A75_84'] + df['OV85']) / (distilled_features['recent_population'] + epsilon)
 
     # Race and Ethnicity (9)
     race_cols = ['WHITE', 'HISP', 'BLACK', 'ASIAN', 'OTHER']
-    race_proportions = df[race_cols].div(df[race_cols].sum(axis=1), axis=0)
+    # Fix: Add small epsilon to prevent division by zero
+    race_proportions = df[race_cols].div(df[race_cols].sum(axis=1) + epsilon, axis=0)
     # Diversity index (1 - sum of squared proportions) - higher means more diverse
     distilled_features['diversity_index'] = 1 - (race_proportions ** 2).sum(axis=1)
     # Largest demographic group percentage
-    distilled_features['largest_demo_pct'] = df[race_cols].max(axis=1) / df[race_cols].sum(axis=1)
+    distilled_features['largest_demo_pct'] = df[race_cols].max(axis=1) / (df[race_cols].sum(axis=1) + epsilon)
 
     # Population in households (10)
-    distilled_features['hh_population_ratio'] = df['POP_HH'] / distilled_features['recent_population']
+    distilled_features['hh_population_ratio'] = df['POP_HH'] / (distilled_features['recent_population'] + epsilon)
 
     # Employment Status (12)
-    distilled_features['employment_rate'] = df['EMP'] / df['POP_16OV']
-    distilled_features['unemployment_rate'] = df['UNEMP'] / df['IN_LBFRC']
-    distilled_features['labor_participation'] = df['IN_LBFRC'] / df['POP_16OV']
+    distilled_features['employment_rate'] = df['EMP'] / (df['POP_16OV'] + epsilon)
+    distilled_features['unemployment_rate'] = df['UNEMP'] / (df['IN_LBFRC'] + epsilon)
+    distilled_features['labor_participation'] = df['IN_LBFRC'] / (df['POP_16OV'] + epsilon)
 
     # Travel to Work (13-14)
-    distilled_features['transit_use_rate'] = df['TRANSIT'] / df['TOT_COMM']
-    distilled_features['work_from_home_rate'] = df['WORK_AT_HOME'] / df['TOT_WRKR16OV']
-    distilled_features['car_commute_rate'] = (df['DROVE_AL'] + df['CARPOOL']) / df['TOT_COMM']
-    distilled_features['active_commute_rate'] = df['WALK_BIKE'] / df['TOT_COMM']
+    distilled_features['transit_use_rate'] = df['TRANSIT'] / (df['TOT_COMM'] + epsilon)
+    distilled_features['work_from_home_rate'] = df['WORK_AT_HOME'] / (df['TOT_WRKR16OV'] + epsilon)
+    distilled_features['car_commute_rate'] = (df['DROVE_AL'] + df['CARPOOL']) / (df['TOT_COMM'] + epsilon)
+    distilled_features['active_commute_rate'] = df['WALK_BIKE'] / (df['TOT_COMM'] + epsilon)
     # Average travel time per commuter
-    distilled_features['avg_commute_time'] = df['AGG_TT'] / df['TOT_COMM']
+    distilled_features['avg_commute_time'] = df['AGG_TT'] / (df['TOT_COMM'] + epsilon)
 
     # Vehicles Available (15)
-    distilled_features['car_ownership_rate'] = (df['ONE_VEH'] + df['TWO_VEH'] + df['THREEOM_VEH']) / df['TOT_HH']
-    distilled_features['multi_car_rate'] = (df['TWO_VEH'] + df['THREEOM_VEH']) / df['TOT_HH']
-    distilled_features['zero_car_rate'] = df['NO_VEH'] / df['TOT_HH']
+    distilled_features['car_ownership_rate'] = (df['ONE_VEH'] + df['TWO_VEH'] + df['THREEOM_VEH']) / (df['TOT_HH'] + epsilon)
+    distilled_features['multi_car_rate'] = (df['TWO_VEH'] + df['THREEOM_VEH']) / (df['TOT_HH'] + epsilon)
+    distilled_features['zero_car_rate'] = df['NO_VEH'] / (df['TOT_HH'] + epsilon)
 
     # Education (17)
-    distilled_features['higher_education_rate'] = (df['BACH'] + df['GRAD_PROF']) / df['POP_25OV']
-    distilled_features['hs_completion_rate'] = (df['HS'] + df['SOME_COLL'] + df['ASSOC'] + df['BACH'] + df['GRAD_PROF']) / df['POP_25OV']
-    distilled_features['college_exposure_rate'] = (df['SOME_COLL'] + df['ASSOC'] + df['BACH'] + df['GRAD_PROF']) / df['POP_25OV']
+    distilled_features['higher_education_rate'] = (df['BACH'] + df['GRAD_PROF']) / (df['POP_25OV'] + epsilon)
+    distilled_features['hs_completion_rate'] = (df['HS'] + df['SOME_COLL'] + df['ASSOC'] + df['BACH'] + df['GRAD_PROF']) / (df['POP_25OV'] + epsilon)
+    distilled_features['college_exposure_rate'] = (df['SOME_COLL'] + df['ASSOC'] + df['BACH'] + df['GRAD_PROF']) / (df['POP_25OV'] + epsilon)
 
     # Income (18)
     distilled_features['median_income'] = df['MEDINC']
     distilled_features['income_per_capita'] = df['INCPERCAP']
-    distilled_features['high_income_pct'] = (df['INC_100_150K'] + df['INC_GT_150']) / df['TOT_HH']
-    distilled_features['low_income_pct'] = df['INC_LT_25K'] / df['TOT_HH']
+    distilled_features['high_income_pct'] = (df['INC_100_150K'] + df['INC_GT_150']) / (df['TOT_HH'] + epsilon)
+    distilled_features['low_income_pct'] = df['INC_LT_25K'] / (df['TOT_HH'] + epsilon)
 
     # Housing Occupancy (19)
-    distilled_features['homeownership_rate'] = df['OWN_OCC_HU'] / df['TOT_HH']
-    distilled_features['rental_rate'] = df['RENT_OCC_HU'] / df['TOT_HH']
-    distilled_features['vacancy_rate'] = df['VAC_HU'] / df['HU_TOT']
+    distilled_features['homeownership_rate'] = df['OWN_OCC_HU'] / (df['TOT_HH'] + epsilon)
+    distilled_features['rental_rate'] = df['RENT_OCC_HU'] / (df['TOT_HH'] + epsilon)
+    distilled_features['vacancy_rate'] = df['VAC_HU'] / (df['HU_TOT'] + epsilon)
 
     # Housing Type (20)
-    distilled_features['single_family_pct'] = (df['HU_SNG_DET'] + df['HU_SNG_ATT']) / df['HU_TOT']
-    distilled_features['small_multifamily_pct'] = (df['HU_2UN'] + df['HU_3_4UN'] + df['HU_5_9UN']) / df['HU_TOT']
-    distilled_features['large_multifamily_pct'] = (df['HU_10_19UN'] + df['HU_GT_19UN']) / df['HU_TOT']
+    distilled_features['single_family_pct'] = (df['HU_SNG_DET'] + df['HU_SNG_ATT']) / (df['HU_TOT'] + epsilon)
+    distilled_features['small_multifamily_pct'] = (df['HU_2UN'] + df['HU_3_4UN'] + df['HU_5_9UN']) / (df['HU_TOT'] + epsilon)
+    distilled_features['large_multifamily_pct'] = (df['HU_10_19UN'] + df['HU_GT_19UN']) / (df['HU_TOT'] + epsilon)
 
     # Housing Size (21)
     distilled_features['median_rooms'] = df['MED_ROOMS']
-    distilled_features['large_homes_pct'] = (df['BR_4'] + df['BR_5']) / (df['BR_0_1'] + df['BR_2'] + df['BR_3'] + df['BR_4'] + df['BR_5'])
-    distilled_features['small_homes_pct'] = df['BR_0_1'] / (df['BR_0_1'] + df['BR_2'] + df['BR_3'] + df['BR_4'] + df['BR_5'])
+    total_homes = df['BR_0_1'] + df['BR_2'] + df['BR_3'] + df['BR_4'] + df['BR_5'] + epsilon
+    distilled_features['large_homes_pct'] = (df['BR_4'] + df['BR_5']) / total_homes
+    distilled_features['small_homes_pct'] = df['BR_0_1'] / total_homes
 
     # Housing Age (22)
     distilled_features['median_home_age'] = df['MED_HA']
-    distilled_features['new_housing_pct'] = (df['HA_AFT2010'] + df['HA_90_10']) / df['HU_TOT']
-    distilled_features['old_housing_pct'] = df['HA_BEF1940'] / df['HU_TOT']
+    distilled_features['new_housing_pct'] = (df['HA_AFT2010'] + df['HA_90_10']) / (df['HU_TOT'] + epsilon)
+    distilled_features['old_housing_pct'] = df['HA_BEF1940'] / (df['HU_TOT'] + epsilon)
 
     # Home Value (23)
     distilled_features['median_home_value'] = df['MED_HV']
-    distilled_features['high_value_homes_pct'] = (df['HV_300_500K'] + df['HV_GT_500K']) / (df['HU_TOT'] - df['VAC_HU'])
+    distilled_features['high_value_homes_pct'] = (df['HV_300_500K'] + df['HV_GT_500K']) / ((df['HU_TOT'] - df['VAC_HU']) + epsilon)
 
     # Rent (24)
     distilled_features['median_rent'] = df['MED_RENT']
-    distilled_features['high_rent_pct'] = (df['RENT_1500_2499'] + df['RENT_GT2500']) / df['CASHRENT_HH']
-    distilled_features['rent_to_income'] = (df['MED_RENT'] * 12) / df['MEDINC']
+    distilled_features['high_rent_pct'] = (df['RENT_1500_2499'] + df['RENT_GT2500']) / (df['CASHRENT_HH'] + epsilon)
+    distilled_features['rent_to_income'] = (df['MED_RENT'] * 12) / (df['MEDINC'] + epsilon)
 
     # Computer & Internet Access (25)
-    distilled_features['internet_access_rate'] = df['INTERNET'] / df['TOT_HH']
-    distilled_features['broadband_rate'] = df['BROADBAND'] / df['TOT_HH']
-    distilled_features['digital_divide_rate'] = df['NO_COMPUTER'] / df['TOT_HH']
+    distilled_features['internet_access_rate'] = df['INTERNET'] / (df['TOT_HH'] + epsilon)
+    distilled_features['broadband_rate'] = df['BROADBAND'] / (df['TOT_HH'] + epsilon)
+    distilled_features['digital_divide_rate'] = df['NO_COMPUTER'] / (df['TOT_HH'] + epsilon)
 
     # Disability (26-28)
-    distilled_features['disability_rate'] = df['DISAB_ANY'] / distilled_features['recent_population']
-    distilled_features['youth_disability_rate'] = df['DIS_UND18'] / (df['UND5'] + df['A5_19'])
-    distilled_features['senior_disability_rate'] = (df['DIS_65_75'] + df['DIS_75OV']) / (df['A65_74'] + df['A75_84'] + df['OV85'])
+    distilled_features['disability_rate'] = df['DISAB_ANY'] / (distilled_features['recent_population'] + epsilon)
+    youth_pop = df['UND5'] + df['A5_19'] + epsilon
+    distilled_features['youth_disability_rate'] = df['DIS_UND18'] / youth_pop
+    senior_pop = df['A65_74'] + df['A75_84'] + df['OV85'] + epsilon
+    distilled_features['senior_disability_rate'] = (df['DIS_65_75'] + df['DIS_75OV']) / senior_pop
 
     # Vehicle Miles (29)
     if 'AVG_VMT' in df.columns:
         distilled_features['avg_vehicle_miles'] = df['AVG_VMT']
-
 
     # Land Use (32)
     distilled_features['residential_land_pct'] = df['Sfperc'] + df['Mfperc']
@@ -346,137 +370,228 @@ def create_distilled_features(df):
     distilled_features['vacant_land_pct'] = df['VACperc']
 
     # Household Size (33)
-    distilled_features['single_person_hh_rate'] = df['CT_1PHH'] / df['TOT_HH']
-    distilled_features['large_hh_rate'] = df['CT_4MPHH'] / df['TOT_HH']
+    distilled_features['single_person_hh_rate'] = df['CT_1PHH'] / (df['TOT_HH'] + epsilon)
+    distilled_features['large_hh_rate'] = df['CT_4MPHH'] / (df['TOT_HH'] + epsilon)
 
     # Household Type (34)
-    distilled_features['family_hh_rate'] = df['CT_FAM_HH'] / df['TOT_HH']
-    distilled_features['single_parent_rate'] = df['CT_SP_WCHILD'] / df['TOT_HH']
+    distilled_features['family_hh_rate'] = df['CT_FAM_HH'] / (df['TOT_HH'] + epsilon)
+    distilled_features['single_parent_rate'] = df['CT_SP_WCHILD'] / (df['TOT_HH'] + epsilon)
 
     # Nativity (35)
-    distilled_features['foreign_born_pct'] = df['FOR_BORN'] / distilled_features['recent_population']
+    distilled_features['foreign_born_pct'] = df['FOR_BORN'] / (distilled_features['recent_population'] + epsilon)
 
     # Language (36)
-    distilled_features['non_english_pct'] = df['NOT_ENGLISH'] / distilled_features['recent_population']
-    distilled_features['linguistic_isolation_rate'] = df['LING_ISO'] / df['TOT_HH']
+    distilled_features['non_english_pct'] = df['NOT_ENGLISH'] / (distilled_features['recent_population'] + epsilon)
+    distilled_features['linguistic_isolation_rate'] = df['LING_ISO'] / (df['TOT_HH'] + epsilon)
 
     # Cross-group relationships
-    distilled_features['home_value_to_income'] = df['MED_HV'] / df['MEDINC']
-    distilled_features['population_density'] = distilled_features['recent_population'] / df['TOT_ACRES']
+    distilled_features['home_value_to_income'] = df['MED_HV'] / (df['MEDINC'] + epsilon)
+    distilled_features['population_density'] = distilled_features['recent_population'] / (df['TOT_ACRES'] + epsilon)
 
-    distilled_features['pop_growth_rate_10yr'] = (df['2020_POP'] - df['2010_POP']) / df['2010_POP'] if '2010_POP' in df.columns else np.nan
-    distilled_features['pop_growth_rate_20yr'] = (df['2020_POP'] - df['2000_POP']) / df['2000_POP'] if '2000_POP' in df.columns else np.nan
-    distilled_features['recent_growth_rate'] = (df['TOT_POP'] - df['2020_POP']) / df['2020_POP'] if 'TOT_POP' in df.columns and '2020_POP' in df.columns else np.nan
+    # Fix: Add error handling for optional columns
+    if all(col in df.columns for col in ['2020_POP', '2010_POP']):
+        distilled_features['pop_growth_rate_10yr'] = (df['2020_POP'] - df['2010_POP']) / (df['2010_POP'] + epsilon)
+    else:
+        distilled_features['pop_growth_rate_10yr'] = np.nan
+
+    if all(col in df.columns for col in ['2020_POP', '2000_POP']):
+        distilled_features['pop_growth_rate_20yr'] = (df['2020_POP'] - df['2000_POP']) / (df['2000_POP'] + epsilon)
+    else:
+        distilled_features['pop_growth_rate_20yr'] = np.nan
+
+    if all(col in df.columns for col in ['TOT_POP', '2020_POP']):
+        distilled_features['recent_growth_rate'] = (df['TOT_POP'] - df['2020_POP']) / (df['2020_POP'] + epsilon)
+    else:
+        distilled_features['recent_growth_rate'] = np.nan
 
     # Housing affordability metrics
-    distilled_features['years_to_buy_median_home'] = df['MED_HV'] / df['INCPERCAP']
-    distilled_features['rent_burden'] = (df['MED_RENT'] * 12) / (df['MEDINC'] / 3)  # Rent as percentage of 1/3 of annual income
+    distilled_features['years_to_buy_median_home'] = df['MED_HV'] / (df['INCPERCAP'] + epsilon)
+    distilled_features['rent_burden'] = (df['MED_RENT'] * 12) / ((df['MEDINC'] / 3) + epsilon)  # Rent as percentage of 1/3 of annual income
 
     # Age distribution metrics
-    distilled_features['child_ratio'] = (df['UND5'] + df['A5_19']) / distilled_features['recent_population']
-    distilled_features['working_age_ratio'] = (df['A20_34'] + df['A35_49'] + df['A50_64']) / distilled_features['recent_population']
-    distilled_features['millennial_zoomer_ratio'] = df['A20_34'] / (df['A35_49'] + df['A50_64'])
+    distilled_features['child_ratio'] = (df['UND5'] + df['A5_19']) / (distilled_features['recent_population'] + epsilon)
+    distilled_features['working_age_ratio'] = (df['A20_34'] + df['A35_49'] + df['A50_64']) / (distilled_features['recent_population'] + epsilon)
+    distilled_features['millennial_zoomer_ratio'] = df['A20_34'] / ((df['A35_49'] + df['A50_64']) + epsilon)
 
     # Mixed use and urban form metrics
-    distilled_features['mixed_use_ratio'] = df['MIXperc'] / (df['Sfperc'] + df['Mfperc'] + df['COMMperc'] + df['INDperc'] + 0.001)  # Adding small constant to avoid division by zero
-    distilled_features['walkability_proxy'] = (distilled_features['residential_land_pct'] * distilled_features['population_density'] * distilled_features['commercial_industrial_pct'] * distilled_features['active_commute_rate']) ** 0.25  # Geometric mean of factors
+    residential_commercial = df['Sfperc'] + df['Mfperc'] + df['COMMperc'] + df['INDperc'] + epsilon
+    distilled_features['mixed_use_ratio'] = df['MIXperc'] / residential_commercial
 
-    # Social vulnerability metrics
+    # helper function for min-max normalization
+    def normalize(series):
+        min_val = series.min()
+        max_val = series.max()
+        if max_val == min_val:
+            return series * 0 + 0.5  # Return a constant if all values are the same
+        return (series - min_val) / (max_val - min_val)
+
+    # Normalize the components that go into walkability proxy
+    norm_res = normalize(distilled_features['residential_land_pct'])
+    norm_pop_density = normalize(distilled_features['population_density'])
+    norm_comm_ind = normalize(distilled_features['commercial_industrial_pct'])
+    norm_active_commute = normalize(distilled_features['active_commute_rate'])
+
+    # Geometric mean used because all components are essential for a good walkability score--if one is small, overall score should be small regardless of the other components--
+    distilled_features['walkability_proxy'] = (norm_res * norm_pop_density * norm_comm_ind * norm_active_commute) ** 0.25
+
+    # Social vulnerability metrics - normalize each component to 0-1 scale
+    norm_disability = normalize(distilled_features['disability_rate'])
+    norm_digital_divide = normalize(distilled_features['digital_divide_rate'])
+    norm_ling_isolation = normalize(distilled_features['linguistic_isolation_rate'])
+    norm_zero_car = normalize(distilled_features['zero_car_rate'])
+    norm_low_income = normalize(distilled_features['low_income_pct'])
+
     distilled_features['social_vulnerability_index'] = (
-                                                               distilled_features['disability_rate'] +
-                                                               distilled_features['digital_divide_rate'] +
-                                                               distilled_features['linguistic_isolation_rate'] +
-                                                               distilled_features['zero_car_rate'] +
-                                                               distilled_features['low_income_pct']
-                                                       ) / 5  # Average of vulnerability indicators
+                                                               norm_disability +
+                                                               norm_digital_divide +
+                                                               norm_ling_isolation +
+                                                               norm_zero_car +
+                                                               norm_low_income
+                                                       ) / 5  # Average of normalized vulnerability indicators
 
-    # Economic metrics
+    # Economic metrics - normalize each component to 0-1 scale
+    norm_employment = normalize(distilled_features['employment_rate'])
+    norm_higher_ed = normalize(distilled_features['higher_education_rate'])
+    norm_high_income = normalize(distilled_features['high_income_pct'])
+    norm_not_low_income = normalize(1 - distilled_features['low_income_pct'])
+
     distilled_features['economic_vitality_index'] = (
-                                                            distilled_features['employment_rate'] +
-                                                            distilled_features['higher_education_rate'] +
-                                                            distilled_features['high_income_pct'] +
-                                                            1 - distilled_features['low_income_pct']  # Invert low income to make higher = better
-                                                    ) / 4  # Average of economic indicators
+                                                            norm_employment +
+                                                            norm_higher_ed +
+                                                            norm_high_income +
+                                                            norm_not_low_income
+                                                    ) / 4  # Average of normalized economic indicators
 
-    # Housing market dynamics
-    distilled_features['housing_age_diversity'] = 1 - (
-            (df['HA_AFT2010'] / df['HU_TOT']) ** 2 +
-            (df['HA_90_10'] / df['HU_TOT']) ** 2 +
-            (df['HA_70_90'] / df['HU_TOT']) ** 2 +
-            (df['HA_40_70'] / df['HU_TOT']) ** 2 +
-            (df['HA_BEF1940'] / df['HU_TOT']) ** 2
-    )  # Diversity index for housing age
+    # Housing age diversity - ensure proper normalization
+    housing_age_columns = ['HA_AFT2010', 'HA_90_10', 'HA_70_90', 'HA_40_70', 'HA_BEF1940']
+    housing_age_props = df[housing_age_columns].div(df['HU_TOT'] + epsilon, axis=0)
+    distilled_features['housing_age_diversity'] = 1 - (housing_age_props ** 2).sum(axis=1)
 
-    # Housing type mix
-    distilled_features['housing_type_diversity'] = 1 - (
-            distilled_features['single_family_pct'] ** 2 +
-            distilled_features['small_multifamily_pct'] ** 2 +
-            distilled_features['large_multifamily_pct'] ** 2 +
-            (df['HU_MOBILE'] / df['HU_TOT']) ** 2
-    )  # Diversity index for housing types
+    # Housing type diversity - ensure proper normalization
+    housing_type_props = pd.DataFrame({
+        'single_family': distilled_features['single_family_pct'],
+        'small_multifamily': distilled_features['small_multifamily_pct'],
+        'large_multifamily': distilled_features['large_multifamily_pct'],
+        'mobile': df['HU_MOBILE'] / (df['HU_TOT'] + epsilon)
+    })
+    distilled_features['housing_type_diversity'] = 1 - (housing_type_props ** 2).sum(axis=1)
 
-    # Gentrification/displacement risk indicators
-    distilled_features['gentrification_risk'] = (
-                                                        distilled_features['rent_to_income'] +
-                                                        distilled_features['home_value_to_income'] +
-                                                        (df['RENT_GT2500'] / df['CASHRENT_HH']) +
-                                                        (df['MED_RENT'] / df['MEDINC']) +
-                                                        (1 - distilled_features['old_housing_pct'])  # Newer housing stock
-                                                ) / 5  # Average of gentrification risk factors
+    # Fix: Correctly create the components for gentrification risk
+    # First, create the high/expensive rent percentage if it's missing
+    if 'expensive_rent_pct' not in distilled_features.columns:
+        distilled_features['expensive_rent_pct'] = distilled_features['high_rent_pct']
 
-    # Mobility dependence
+    # Create rent_to_med_income if it's missing
+    if 'rent_to_med_income' not in distilled_features.columns:
+        distilled_features['rent_to_med_income'] = distilled_features['rent_to_income']
+
+    # Gentrification/displacement risk indicators - normalize components
+    risk_components = ['rent_to_income', 'home_value_to_income', 'expensive_rent_pct',
+                       'rent_to_med_income', 'new_housing_pct']
+
+    # Create normalized versions of each component
+    for component in risk_components:
+        if component in distilled_features.columns:
+            norm_name = f'{component}_norm'
+            distilled_features[norm_name] = normalize(distilled_features[component])
+        else:
+            print(f"Warning: Component {component} not found in distilled_features")
+
+    # Only include columns that exist in calculation
+    existing_norm_components = [f'{c}_norm' for c in risk_components if f'{c}_norm' in distilled_features.columns]
+
+    if len(existing_norm_components) > 0:
+        # Weights normalized to sum to 1 based on available components
+        weights = {
+            'rent_to_income_norm': 0.3,
+            'home_value_to_income_norm': 0.25,
+            'expensive_rent_pct_norm': 0.2,
+            'rent_to_med_income_norm': 0.15,
+            'new_housing_pct_norm': 0.1
+        }
+
+        # Calculate weighted sum with available components
+        total_weight = sum(weights[c] for c in existing_norm_components)
+        distilled_features['gentrification_risk'] = sum(
+            distilled_features[c] * (weights[c]/total_weight) for c in existing_norm_components
+        )
+    else:
+        distilled_features['gentrification_risk'] = np.nan
+
+    # Mobility dependence - normalize components before averaging
+    norm_car_commute = normalize(distilled_features['car_commute_rate'])
+    norm_multi_car = normalize(distilled_features['multi_car_rate'])
+    norm_not_transit = normalize(1 - distilled_features['transit_use_rate'])
+    norm_not_active = normalize(1 - distilled_features['active_commute_rate'])
+
     distilled_features['car_dependence_index'] = (
-                                                         distilled_features['car_commute_rate'] +
-                                                         distilled_features['multi_car_rate'] +
-                                                         (1 - distilled_features['transit_use_rate']) +
-                                                         (1 - distilled_features['active_commute_rate'])
-                                                 ) / 4  # Average of car dependence indicators
+                                                         norm_car_commute +
+                                                         norm_multi_car +
+                                                         norm_not_transit +
+                                                         norm_not_active
+                                                 ) / 4  # Average of normalized car dependence indicators
 
     # Housing mismatch indicators
+    # Calculate average bedrooms per unit
+    total_br = (df['BR_0_1'] * 1.5 + df['BR_2'] * 2 + df['BR_3'] * 3 +
+                df['BR_4'] * 4 + df['BR_5'] * 5)
+    avg_br = total_br / (df['HU_TOT'] + epsilon)
     distilled_features['housing_size_mismatch'] = abs(
-        distilled_features['avg_household_size'] -
-        (df['BR_0_1'] * 1.5 + df['BR_2'] * 2 + df['BR_3'] * 3 + df['BR_4'] * 4 + df['BR_5'] * 5) / df['HU_TOT']
-    )  # Difference between avg household size and avg bedrooms
+        distilled_features['avg_household_size'] - avg_br
+    )
 
     # Family structure indicators
-    distilled_features['non_traditional_hh_rate'] = (df['CT_NONFAM_HH'] + df['CT_SP_WCHILD']) / df['TOT_HH']
+    distilled_features['non_traditional_hh_rate'] = (df['CT_NONFAM_HH'] + df['CT_SP_WCHILD']) / (df['TOT_HH'] + epsilon)
 
     # Assessed value per capita
     if 'TOT_EAV' in df.columns:
-        distilled_features['eav_per_capita'] = df['TOT_EAV'] / distilled_features['recent_population']
-        distilled_features['residential_eav_per_capita'] = df['RES_EAV'] / distilled_features['recent_population']
-        distilled_features['commercial_eav_per_capita'] = df['CMRCL_EAV'] / distilled_features['recent_population']
+        distilled_features['eav_per_capita'] = df['TOT_EAV'] / (distilled_features['recent_population'] + epsilon)
+        if 'RES_EAV' in df.columns:
+            distilled_features['residential_eav_per_capita'] = df['RES_EAV'] / (distilled_features['recent_population'] + epsilon)
+        if 'CMRCL_EAV' in df.columns:
+            distilled_features['commercial_eav_per_capita'] = df['CMRCL_EAV'] / (distilled_features['recent_population'] + epsilon)
 
     # Segregation/integration indicators
     if all(col in df.columns for col in ['WHITE', 'BLACK', 'HISP', 'ASIAN']):
         max_group = df[['WHITE', 'BLACK', 'HISP', 'ASIAN']].max(axis=1)
-        distilled_features['segregation_index'] = max_group / df[['WHITE', 'BLACK', 'HISP', 'ASIAN']].sum(axis=1)
+        race_sum = df[['WHITE', 'BLACK', 'HISP', 'ASIAN']].sum(axis=1) + epsilon
+        distilled_features['segregation_index'] = max_group / race_sum
 
-    # Community resources
-    distilled_features['institutional_land_ratio'] = df['INSTperc'] if 'INSTperc' in df.columns else np.nan
-    distilled_features['resource_access_index'] = (
-                                                          distilled_features['institutional_land_ratio'] +
-                                                          distilled_features['internet_access_rate'] +
-                                                          (1 - distilled_features['zero_car_rate']) +
-                                                          distilled_features['transit_use_rate']
-                                                  ) / 4  # Average of resource access indicators
+    # Community resources - normalize components
+    if 'INSTperc' in df.columns:
+        distilled_features['institutional_land_ratio'] = df['INSTperc']
+
+        # Normalize components for resource access index
+        norm_inst_land = normalize(distilled_features['institutional_land_ratio'])
+        norm_internet = normalize(distilled_features['internet_access_rate'])
+        norm_car_access = normalize(1 - distilled_features['zero_car_rate'])
+        norm_transit = normalize(distilled_features['transit_use_rate'])
+
+        distilled_features['resource_access_index'] = (
+                                                              norm_inst_land +
+                                                              norm_internet +
+                                                              norm_car_access +
+                                                              norm_transit
+                                                      ) / 4  # Average of normalized resource access indicators
 
     # Economic diversity
-    distilled_features['income_diversity'] = 1 - (
-            (df['INC_LT_25K'] / df['TOT_HH']) ** 2 +
-            (df['INC_25_50K'] / df['TOT_HH']) ** 2 +
-            (df['INC_50_75K'] / df['TOT_HH']) ** 2 +
-            (df['INC_75_100K'] / df['TOT_HH']) ** 2 +
-            (df['INC_100_150K'] / df['TOT_HH']) ** 2 +
-            (df['INC_GT_150'] / df['TOT_HH']) ** 2
-    )  # Diversity index for income distribution
+    income_cols = ['INC_LT_25K', 'INC_25_50K', 'INC_50_75K', 'INC_75_100K', 'INC_100_150K', 'INC_GT_150']
+    income_props = df[income_cols].div(df['TOT_HH'] + epsilon, axis=0)
+    distilled_features['income_diversity'] = 1 - (income_props ** 2).sum(axis=1)
+
+    # Remove normalized components used for indices
+    norm_columns = [col for col in distilled_features.columns if col.endswith('_norm')]
+    distilled_features = distilled_features.drop(columns=norm_columns, errors='ignore')
+
+    # Remove other intermediate or redundant features
+    intermediate_features = [
+        'expensive_rent_pct',
+        'rent_to_med_income'
+    ]
+    distilled_features = distilled_features.drop(columns=intermediate_features, errors='ignore')
 
     # Handle any potential division by zero or missing values
-    distilled_features = distilled_features.replace([np.inf, -np.inf], np.nan)
-
-    # Remove columns with NaN values
-    distilled_features = distilled_features.dropna(axis=1)
-
+    distilled_features = distilled_features.dropna(axis=1, how='any')
 
     return distilled_features
 
