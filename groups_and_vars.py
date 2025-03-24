@@ -83,154 +83,7 @@ def group_names_and_variables():
         "NATIVE": 35, "FOR_BORN": 35,
         "NOT_ENGLISH": 36, "LING_ISO": 36, "ENGLISH": 36, "SPANISH": 36, "SLAVIC": 36, "CHINESE": 36, "TAGALOG": 36, "ARABIC": 36, "KOREAN": 36, "OTHER_ASIAN": 36, "OTHER_EURO": 36, "OTHER_UNSPEC": 36,
     }
-
-    features_keep = [
-         'Crime_Count',
-         'CA', # cat
-         'GEOG', # cat
-         '2020_POP',
-         '2020_HH', # total houholds
-         '2020_HH_SIZE', # avg HH size
-         'TOT_POP', # 2018-2022
-         'UND5',
-         'A5_19',
-         'A20_34',
-         'A35_49',
-         'A50_64',
-         'A65_74',
-         'A75_84',
-         'OV85',
-         #'MED_AGE',
-         'EMP',
-         'UNEMP',
-         'TOT_WRKR16OV',
-         'WORK_AT_HOME',
-         'TOT_COMM',
-         'DROVE_AL',
-         'CARPOOL',
-         'TRANSIT',
-         'WALK_BIKE',
-         'COMM_OTHER',
-         'AGG_TT', # aggregate travel time to work
-         'NO_VEH',
-         'ONE_VEH',
-         'TWO_VEH',
-         'THREEOM_VEH',
-         'LT_HS', # less than high school
-         'HS', # high school
-         'SOME_COLL',
-         'ASSOC',
-         'BACH',
-         'GRAD_PROF',
-         'INC_LT_25K',
-         'INC_25_50K',
-         'INC_50_75K',
-         'INC_75_100K',
-         'INC_100_150K',
-         'INC_GT_150',
-         #'MEDINC',
-         'INCPERCAP',
-         'TOT_HH',
-         'OWN_OCC_HU',
-         'RENT_OCC_HU',
-         'VAC_HU',
-         #'HU_TOT', # total housing units
-         'HU_SNG_DET',
-         'HU_SNG_ATT',
-         'HU_2UN',
-         'HU_3_4UN',
-         'HU_5_9UN',
-         'HU_10_19UN',
-         'HU_GT_19UN',
-         'HU_MOBILE',
-         #'MED_ROOMS',
-         'BR_0_1', # bedrooms 0 to 1
-         'BR_2',
-         'BR_3',
-         'BR_4',
-         'BR_5',
-         'HA_AFT2010',
-         'HA_90_10',
-         'HA_70_90',
-         'HA_40_70',
-         'HA_BEF1940',
-         #'MED_HA',
-         'HV_LT_150K', # home value
-         'HV_150_300K',
-         'HV_300_500K',
-         'HV_GT_500K',
-         #'MED_HV',
-         'CASHRENT_HH',
-         'RENT_LT500',
-         'RENT_500_999',
-         'RENT_1000_1499',
-         'RENT_1500_2499',
-         'RENT_GT2500',
-         #'MED_RENT',
-         'COMPUTER',
-         'ONLY_SMARTPHONE',
-         'NO_COMPUTER',
-         'INTERNET',
-         'BROADBAND',
-         'NO_INTERNET',
-         'DISAB_ONE',
-         'DISAB_TWOMOR',
-         'DISAB_ANY', # total no of people with disability
-         'DIS_HEAR',
-         'DIS_VIS',
-         'DIS_COG',
-         'DIS_AMB',
-         'DIS_SLFCARE',
-         'DIS_INDPLIV',
-         'DIS_UND18',
-         'DIS_18_64',
-         'DIS_65_75',
-         'DIS_75OV',
-         'AVG_VMT', # average vehicle miles traveled
-         'TOT_ACRES',
-         #'SF',
-         'Sfperc',
-         #'MF',
-         'Mfperc',
-         #'MIX',
-         'MIXperc',
-         #'COMM',
-         'COMMperc',
-         #'INST',
-         'INSTperc',
-         #'IND',
-         'INDperc',
-         #'TRANS',
-         'TRANSperc',
-         #'AG',
-         'Agperc',
-         #'OPEN',
-         'OPENperc',
-         #'VACANT',
-         'VACperc',
-         'CT_1PHH', # 1 person HH
-         'CT_2PHH',
-         'CT_3PHH',
-         'CT_4MPHH',
-         'CT_FAM_HH', # family
-         'CT_SP_WCHILD', # single parent with child
-         'CT_NONFAM_HH',
-         'NATIVE',
-         'FOR_BORN',
-         'NOT_ENGLISH',
-         'LING_ISO',
-         'ENGLISH',
-         'SPANISH',
-         'SLAVIC',
-         'CHINESE',
-         'TAGALOG',
-         'ARABIC',
-         'KOREAN',
-         'OTHER_ASIAN',
-         'OTHER_EURO',
-         'OTHER_UNSPEC',
-         ]
-    return features_keep, groups_dict, group_names
+    return groups_dict, group_names
 
 def create_distilled_features(df):
     """
@@ -257,6 +110,8 @@ def create_distilled_features(df):
     housing_age_diversity: ACS 2023
     housing_type_diversity: ACS 2023
     gentrification_risk: IDENTIFICATION OF INDICES TO QUANTIFY GENTRIFICATION
+    
+    Diversity indecis: An Introduction to Statistical Learning with Applications in Python (Gini Index)
 
     """
 

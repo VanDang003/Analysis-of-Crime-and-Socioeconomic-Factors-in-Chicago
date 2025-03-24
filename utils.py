@@ -298,7 +298,7 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
     if save_plot:
         nonzero_suffix = "_nonzero" if show_nonzero_only else ""
         title_save = clean_title(title)
-        plt.savefig(f'output/{title_save}{nonzero_suffix}.png', bbox_inches='tight', pad_inches=0.1)
+        plt.savefig(f'output/{title_save}{nonzero_suffix}.pdf', bbox_inches='tight')
     plt.show()
 
     # Return both the best GroupLasso coefficients and the Ridge model
@@ -536,7 +536,7 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     plt.tight_layout()
 
     if save_plot:
-        plt.savefig(f'output/xgboost_model_diagnostics - {title}.png')
+        plt.savefig(f'output/xgboost_model_diagnostics - {title}.pdf', bbox_inches='tight')
     plt.show()
 
     # Additional analysis: Identify regions with highest error
