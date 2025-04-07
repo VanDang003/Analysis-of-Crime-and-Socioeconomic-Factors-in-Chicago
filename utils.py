@@ -629,6 +629,76 @@ def crime_rate_month(merged_data, data_csv_clean):
     return detailed_crime
 
 #%%
+
+
+def citywide_crime_rate_year(merged_data, data_csv_clean, crime_map):
+
+    ca_col = 'GEOID' if 'GEOID' in merged_data.columns else 'CA'
+    pop_cols_needed = [ca_col, '2010_POP', '2020_POP']
+
+    base_merged = merged_data[pop_cols_needed].copy()
+
+    for pop_col in ['2010_POP', '2020_POP']:
+        if pop_col in base_merged.columns:
+            base_merged[pop_col] = pd.to_numeric(base_merged[pop_col], errors='coerce')
+        else:
+            raise ValueError(f"Required population column '{pop_col}' not found in merged_data.")
+
+    city_pop_2010 = base_merged['2010_POP'].sum()
+    city_pop_2020 = base_merged['2020_POP'].sum()
+
+    city_pop_estimates = {}
+    epsilon_pop = 1e-6
+    use_estimated_pop = False
+
+    if pd.isna(city_pop_2010) or pd.isna(city_pop_2020) or city_pop_2010 <= 0:
+        raise ValueError("Missing or invalid citywide 2010/2020 population totals. Cannot interpolate/extrapolate.")
+    else:
+        use_estimated_pop = True
+        denominator_2010 = city_pop_2010 if city_pop_2010 > 0 else epsilon_pop
+        annual_growth_rate = (city_pop_2020 / denominator_2010) ** (1/10.0) - 1
+
+        for year in range(2015, 2026):
+            if year <= 2020:
+                weight_2020 = (year - 2010) / 10.0
+                weight_2010 = 1.0 - weight_2020
+                city_pop_estimates[year] = (weight_2010 * city_pop_2010) + (weight_2020 * city_pop_2020)
+            else:
+                years_after_2020 = year - 2020
+                city_pop_estimates[year] = city_pop_2020 * (1 + annual_growth_rate) ** years_after_2020
+
+    annual_crime = data_csv_clean.copy()
+    annual_crime['Crime_Type'] = annual_crime['Primary Type'].str.replace(' ', '_').str.replace('/', '_')
+    annual_crime['Crime_Category'] = annual_crime['Crime_Type'].map(crime_map)
+
+    city_annual_crime_category = annual_crime.groupby(['Year', 'Crime_Category'], observed=False, dropna=False)['ID'].count().reset_index()
+    city_annual_crime_category.columns = ['Year', 'Crime_Category', 'Crime_Count']
+
+    valid_years = list(range(2015, 2026))
+    city_annual_crime_category_filtered = city_annual_crime_category[city_annual_crime_category['Year'].isin(valid_years)].copy()
+
+    if use_estimated_pop:
+        city_annual_crime_category_filtered['Est_Population'] = city_annual_crime_category_filtered['Year'].map(city_pop_estimates)
+    else:
+        city_annual_crime_category_filtered['Est_Population'] = np.nan
+
+
+    valid_pop = city_annual_crime_category_filtered['Est_Population'].notna() & (city_annual_crime_category_filtered['Est_Population'] > 0)
+    city_annual_crime_category_filtered['Crime_Rate'] = np.nan
+    epsilon_rate = 1e-9
+
+    city_annual_crime_category_filtered.loc[valid_pop, 'Crime_Rate'] = (
+            city_annual_crime_category_filtered.loc[valid_pop, 'Crime_Count'] /
+            (city_annual_crime_category_filtered.loc[valid_pop, 'Est_Population'] + epsilon_rate) * 1000
+    )
+
+    final_cols = ['Year', 'Crime_Category', 'Crime_Count', 'Est_Population', 'Crime_Rate']
+    citywide_aggregated_crime_year = city_annual_crime_category_filtered[final_cols]
+
+    return citywide_aggregated_crime_year
+
+
+#%%
 def corr_pairs(df, features=None):
     if features is not None:
         # correlation matrix
@@ -650,4 +720,3 @@ def corr_pairs(df, features=None):
     for feat1, feat2, corr_val in high_corr_pairs:
         print(f"{feat1} & {feat2}: {corr_val:.3f}")
     return high_corr_pairs
-
