@@ -1,799 +1,416 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Chicago Crime Map with Line and Doughnut Charts</title>
+  <meta charset="UTF-8" />
+  <title>Chicago Crime Overview – Summary Dashboard</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
   <style>
-    /* === Base Layout === */
+    /* [STYLE UNCHANGED – your final styling block remains intact] */
     body {
       margin: 0;
-      font-family: sans-serif;
-      background: #f3f3f3;
-    }
-  
-    #dashboard {
-      display: flex;
-      height: 100vh;
-      width: 100vw;
-      gap: 20px;
-      padding: 20px;
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-  
-    /* === Shared Card Styles === */
-    .card {
-      background: white;
-      border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-      padding: 16px;
-      width: 100%;
-      box-sizing: border-box;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-  
-    .card.hidden {
-      display: none;
-      opacity: 0;
-    }
-  
-    .card h3 {
-      margin-top: 0;
-      font-size: 16px;
-      color: #333;
-    }
-  
-    /* === Map Panel === */
-    #map-panel {
-      flex: 7;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 16px;
-      background: white;
-      box-sizing: border-box;
-    }
-  
-    .map-header {
-      text-align: center;
-      padding: 10px 0;
-      background: white;
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-      letter-spacing: 0.4px;
-      position: relative;
-      z-index: 2;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-      border-radius: 6px 6px 0 0;
-    }
-  
-    .map-header h3 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-    }
-  
-    .map-wrapper {
-      flex: 1;
-      background: transparent;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-  
-    #map {
-      width: 100%;
-      height: 100%;
-      background: #f3f3f3;
-      position: relative;
-      padding: 0; /* optional */
-    }
-  
-    #map svg {
-      transform: scale(0.98);
-      transform-origin: center;
-      display: block;
-      margin: 0 auto;
-    }
-  
-    #map path {
-      fill: #dddddd;
-      stroke: #999;
-      stroke-width: 0.5;
-    }
-  
-    #map path.community {
-      transition: fill 0.3s ease, stroke 0.3s ease;
-      cursor: pointer;
-    }
-  
-    #map path.community:hover {
-      stroke: #333;
-      stroke-width: 1.2;
-      filter: brightness(1.1);
-    }
-  
-    .selected {
-      fill: #bdbcbc !important;
-      stroke: #333 !important;
-      stroke-width: 1.5;
-    }
-  
-    .dimmed {
-      opacity: 0.6;
-    }
-  
-    /* === Crime Spikes === */
-    polygon.spike {
-      fill: #ff5252;
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  
-    /* === Doughnut Panel === */
-    #doughnut-panel {
-      flex: 3;
-      height: 100%;
-      max-height: 100%;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-sizing: border-box;
-      gap: 12px;
-    }
-  
-    #doughnut {
-      width: 100%;
-    }
-  
-    #doughnut h2 {
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-  
-    #doughnut-chart {
-      width: 100%;
-      height: auto;
-      aspect-ratio: 1 / 1;
-      max-width: 300px;
-      margin: 0 auto;
-      display: block;
+      font-family: 'Segoe UI', sans-serif;
+      background: #ffffff;
+      padding: 40px;
+      color: #b54833;
     }
 
-    #doughnut-tooltip {
-      position: absolute;
-      background: white;
-      border: 1px solid #ccc;
-      padding: 8px 12px;
-      font-size: 12px;
-      border-radius: 4px;
-      pointer-events: none;
-      opacity: 0;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-      z-index: 20;
-    }
-    
-  
-    /* === Legend === */
-    #legend {
-      margin-top: 15px;
-      font-size: 12px;
-    }
-  
-    .legend-item {
+    .header-row {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      margin-bottom: 6px;
+      margin-bottom: 30px;
     }
-  
-    .legend-swatch {
-      width: 14px;
-      height: 14px;
-      margin-right: 6px;
-      border-radius: 2px;
+
+    h1 {
+      font-size: 28px;
+      margin: 0;
+      color: #b54833;
     }
-  
-    /* === Indicators Panel === */
-    #indicators-card {
-      flex: 1;
+
+    .dashboard-btn {
+      background-color: #b54833;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+    }
+
+    .dashboard-btn:hover {
+      background-color: #a33f2b;
+    }
+
+    .dashboard-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .chart-card {
+      flex: 1 1 300px;
+      background: #ffffff;
+      border: 1px solid #f7c9a6;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+      text-align: center;
+    }
+
+    .chart-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #bc6a59;
+      margin-bottom: 10px;
+      text-align: left;
+      border-bottom: 2px solid #f7b98a;
+      padding-bottom: 6px;
+    }
+
+    .summary-split-box {
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      justify-content: space-between;
+      flex: 1 1 240px;
+      gap: 20px;
     }
-  
-    #indicators {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      margin-top: 12px;
-    }
-  
-    #indicators::-webkit-scrollbar {
-      width: 6px;
-    }
-  
-    .indicator-row {
-      margin-bottom: 8px;
-      font-family: sans-serif;
-    }
-  
-    .indicator-label {
-      font-size: 12px;
-      margin-bottom: 4px;
-      color: #333;
-    }
-  
-    .indicator-bar-container {
-      height: 12px;
-      background: #eee;
-      border-radius: 3px;
-      width: 100%;
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-  
-    .indicator-bar-fill {
-      background: #4c6ef5;
-      height: 100%;
-      border-radius: 3px 0 0 3px;
-      max-width: 100%;
-      transition: width 0.4s ease;
-    }
-  
-    .indicator-value {
-      font-size: 10px;
-      color: #333;
-      white-space: nowrap;
-      background: none;
-      margin-left: 8px;
-      flex-shrink: 0;
-      position: static;
-    }
-  
-    /* === Tooltip === */
-    .tooltip {
-      position: absolute;
-      background: white;
-      border: 1px solid #ccc;
-      border-left: 4px solid #4c6ef5;
-      padding: 12px 16px;
-      font-size: 13px;
-      color: #222;
-      pointer-events: none;
-      opacity: 0;
-      max-width: 320px;
-      border-radius: 8px;
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-      transition: top 0.2s ease, left 0.2s ease, opacity 0.2s ease;
-      z-index: 10;
-    }
-  
-    .tooltip svg {
-      width: 280px;
-      height: 120px;
+
+    .summary-box {
       background: #ffffff;
-      margin-top: 5px;
+      border: 1px solid #f7c9a6;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      flex: 1;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
     }
-  
-    #tooltip-chart path {
-      fill: lightblue;
-      stroke: steelblue;
-      stroke-width: 1.0;
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: bold;
+      color: #b54833;
     }
-  
-    /* === SVG Global === */
+
+    .stat-label {
+      font-size: 14px;
+      color: #a1563f;
+      margin-top: 4px;
+    }
+
+    .stat-date {
+      font-size: 12px;
+      color: #bb715f;
+    }
+
+    .chart-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .chart-box {
+      flex: 1 1 500px;
+      background: #ffffff;
+      border: 1px solid #f7c9a6;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .chart-box h3 {
+      text-align: left;
+      font-size: 16px;
+      font-weight: 600;
+      color: #b54833;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #f7b98a;
+      padding-bottom: 6px;
+    }
+
+    .styled-highlight {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      border-left: 4px solid #f7b98a;
+      padding: 24px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      border: 1px solid #f7c9a6;
+    }
+
+    .stat-header {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #a1563f;
+    }
+
+    .stat-highlight-number {
+      font-size: 36px;
+      font-weight: 800;
+      color: #b54833;
+      line-height: 1;
+    }
+
+    .stat-subtext {
+      font-size: 12px;
+      color: #bb715f;
+    }
+
     svg {
+      display: block;
       width: 100%;
-      height: 100%;
-      overflow: visible;
+      height: 300px;
+      background-color: transparent;
     }
-  
-    /* === Utility === */
-    .hidden {
-      display: none;
-    }
-  </style>  
+  </style>
 </head>
 <body>
 
-<div id="dashboard">
-  <div id="map-panel" class="card">
-    <div class="map-header">
-      <h3>Community Map</h3>
-    </div>
-    <div class="map-wrapper">
-      <div id="map">
-        <svg></svg>
-        <div class="tooltip" id="tooltip">
-          <div id="tooltip-header"></div>
-          <svg id="tooltip-chart"></svg>
-        </div>
-      </div>
-    </div>
-  </div>  
-  <div id="doughnut-tooltip"></div>
-  <div id="doughnut-panel">
-    <div id="doughnut" class="card hidden">
-      <div class="map-header">
-        <h3 id="doughnut-title">Crime by Category</h3>
-      </div>
-      <svg id="doughnut-chart" width="160" height="160"></svg>
-      <div id="legend"></div>
-    </div>
+  <div class="header-row">
+    <h1>Chicago Crime & Socio-Economic Summary</h1>
+    <a class="dashboard-btn" href="dashboard.html">→ Go To Dashboard</a>
+  </div>
 
-    <div id="indicators-card" class="card hidden">
-      <div class="map-header">
-        <h3>
-          Socio-Economic Indicators
-          <span id="sort-toggle" style="cursor: pointer; font-size: 12px; margin-left: 8px;" title="Toggle Sort Order">▼</span>
-        </h3>
-      </div>            
-      <div id="indicators"></div>
+  <div class="dashboard-grid">
+    <div class="chart-card">
+      <h3>Visualization 1</h3>
+      <svg id="donut-guest"></svg>
+    </div>
+    <div class="chart-card">
+      <h3>Visualization 2</h3>
+      <svg id="donut-status"></svg>
+    </div>
+    <div class="chart-card">
+      <h3>Visualization 3</h3>
+      <svg id="donut-season"></svg>
+    </div>
+    <div class="summary-split-box">
+      <div class="summary-box styled-highlight" id="total-crimes-box">
+        <div class="stat-header">Total Reported Crimes</div>
+        <div class="stat-highlight-number" id="total-crimes-value">–</div>
+        <div class="stat-subtext">Jan 2015 – Dec 2024</div>
+      </div>      
+      <div class="summary-box styled-highlight" id="top-crime-box">
+        <div class="stat-header" id="top-crime-name">–</div>
+        <div class="stat-highlight-number" id="top-crime-count">–</div>
+        <div class="stat-subtext" id="top-crime-percent">–</div>
+      </div>         
+    </div>
+  </div> 
+
+  <div class="chart-section">
+    <div class="chart-box">
+      <h3>Crime by Year</h3>
+      <svg id="bar-year"></svg>
+    </div>
+    <div class="chart-box">
+      <h3>Crime Rate Over Time</h3>
+      <svg id="line-rate"></svg>
     </div>
   </div>
-</div>
 
-<script>
-const svg = d3.select("svg");
-const tooltip = d3.select("#tooltip");
-const tooltipHeader = d3.select("#tooltip-header");
-const chartSvg = d3.select("#tooltip-chart");
-const doughnutSvg = d3.select("#doughnut-chart");
-const doughnutTitle = d3.select("#doughnut-title");
+  <!-- === SCRIPT WITH REAL DATA INTEGRATION === -->
+  <script>
+    Promise.all([
+      d3.csv("data/crime_rate_by_crime_group.csv", d3.autoType),
+      d3.csv("data/crime_rate_by_crime_type.csv", d3.autoType)
+    ]).then(([crimeGroup, crimeType]) => {
+      // Total crimes
+      const totalCrimes = d3.sum(crimeGroup, d => d.Crime_Count);
+      d3.select("#total-crimes-value").text(totalCrimes.toLocaleString());
 
-const mapContainer = document.getElementById("map");
-const width = mapContainer.clientWidth || window.innerWidth * 0.6;
-const height = mapContainer.clientHeight || window.innerHeight;
+      // Most frequent crime type
+      const typeTotals = d3.rollups(
+        crimeType,
+        v => d3.sum(v, d => d.Crime_Count),
+        d => d.Crime_Type
+      ).sort((a, b) => d3.descending(a[1], b[1]));
 
-const spikeWidth = 10;
+      const [topType, topCount] = typeTotals[0];
+      const totalType = d3.sum(typeTotals, d => d[1]);
+      const topPct = ((topCount / totalType) * 100).toFixed(1);
 
-let crimeByCategory = [];
-let indicatorScales = [];
+      d3.select("#top-crime-name").text(topType);
+      d3.select("#top-crime-count").text(topCount.toLocaleString());
+      d3.select("#top-crime-percent").text(`${topPct}% of all reports`);
 
-Promise.all([
-  d3.json("data/chicago.geojson"),
-  d3.csv("data/crime_rate_by_crime_type.csv", d3.autoType),
-  d3.csv("data/crime_rate_by_crime_group.csv", d3.autoType),
-  d3.csv("data/top_features_per_CA_sorted.csv", d3.autoType)
-]).then(([geojson, crimes, crimeGroup, features]) => {
-  crimes = crimes.filter(d => d.Year !== 2025);
-  crimeGroup = crimeGroup.filter(d => d.Year !== 2025);
-  topFeatures = features;
-  const indicators = features.columns.filter(c => !["CA", "GEOG", "Crime_Rate"].includes(c));
-  indicators.forEach(key => {
-    const values = features.map(d => +d[key]).filter(v => !isNaN(v));
-    indicatorScales[key] = d3.scaleLinear().domain(d3.extent(values)).range([0, 1]);
-  });
+      // Donut Chart – Top 5 Crime Types
+      const donutData = typeTotals.slice(0, 5);
+      const donutSvg = d3.select("#donut-guest"),
+            width = 300, height = 300, radius = Math.min(width, height) / 2;
 
-  const avgCrimeByCA = d3.rollup(crimes, v => d3.mean(v, d => d.Crime_Rate), d => d.CA);
-  crimeByCategory = d3.rollups(crimeGroup, v => d3.sum(v, d => d.Crime_Count), d => d.CA, d => d.Crime_Category);
+      const donutG = donutSvg
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .append("g")
+        .attr("transform", `translate(${width / 2},${height / 2})`);
 
-  const projection = d3.geoMercator();
-  const path = d3.geoPath().projection(projection);
-  projection.fitSize([width, height], geojson);
+      const color = d3.scaleOrdinal(d3.schemeSet2);
 
-  const mapGroup = svg.append("g")
-  .attr("transform", `translate(${width / 2}, ${height / 2}) translate(-${width / 2}, -${height / 2})`);
+      const pie = d3.pie().value(d => d[1]);
+      const arc = d3.arc().innerRadius(60).outerRadius(radius - 10);
 
-  const maxCrime = d3.max(Array.from(avgCrimeByCA.values()));
-  const spikeScale = d3.scaleLinear().domain([0, maxCrime]).range([0, 100]);
-  const colorScale = d3.scaleQuantize()
-    .domain([0, maxCrime])
-    .range(d3.schemeBlues[7]);
+      donutG.selectAll("path")
+        .data(pie(donutData))
+        .join("path")
+        .attr("d", arc)
+        .attr("fill", d => color(d.data[0]))
+        .append("title")
+        .text(d => `${d.data[0]}: ${d.data[1].toLocaleString()}`);
 
-  let activeCA = null;
+      // Horizontal Bar – Crime Categories
+      const barGroup = d3.group(crimeGroup, d => d.Crime_Group);
+      const barData = Array.from(barGroup, ([key, values]) => ({
+        name: key,
+        count: d3.sum(values, d => d.Crime_Count)
+      })).sort((a, b) => d3.descending(a.count, b.count));
 
-  mapGroup.selectAll("path")
-    .data(geojson.features)
-    .join("path")
-    .attr("class", "community")
-    .attr("d", path)
-    .style("fill", d => {
-      const caId = +d.properties.area_num_1;
-      const rate = avgCrimeByCA.get(caId);
-      return rate != null ? colorScale(rate) : "#eee";
-    })
-    .on("mouseover", (event, d) => {
-      const caId = +d.properties.area_num_1;
-      drawLineChart(caId, d.properties.community);
-      tooltip.style("opacity", 1);
-    })
-    .on("mousemove", (event) => {
-      const tooltipNode = tooltip.node();
-      const tooltipHeight = tooltipNode.offsetHeight;
-      const verticalBuffer = 40;
+      const barSvg = d3.select("#donut-status")
+        .attr("viewBox", `0 0 300 300`);
 
-      const containerRect = document.getElementById("map").getBoundingClientRect();
-      const pageY = event.pageY;
-      const pageX = event.pageX;
-      const defaultTop = pageY - 20;
-      const bottomEdge = pageY + tooltipHeight + verticalBuffer;
+      const x = d3.scaleLinear()
+        .domain([0, d3.max(barData, d => d.count)])
+        .range([0, 280]);
 
-      const adjustedTop = bottomEdge > containerRect.bottom
-        ? pageY - tooltipHeight - verticalBuffer
-        : defaultTop;
+      const y = d3.scaleBand()
+        .domain(barData.map(d => d.name))
+        .range([0, 280])
+        .padding(0.2);
 
-      tooltip
-        .style("left", (pageX + 15) + "px")
-        .style("top", `${adjustedTop}px`);
-    })
-    .on("mouseout", () => tooltip.style("opacity", 0))
-    .on("click", (event, d) => {
-      const caId = +d.properties.area_num_1;
-      const community = d.properties.community;
-      
-      if (activeCA === caId) {
-        activeCA = null;
-        svg.selectAll("path").classed("selected", false).classed("dimmed", false);
-        d3.select("#doughnut").classed("hidden", true);
-        d3.select("#indicators-card").classed("hidden", true);
-        mapGroup.transition()
-          .duration(750)
-          .attr("transform", `translate(${width / 2}, ${height / 2}) translate(-${width / 2}, -${height / 2})`);
-      } else {
-        activeCA = caId;
-        svg.selectAll("path").classed("selected", dd => dd === d).classed("dimmed", dd => dd !== d);
-        drawRightChart(caId, community);
-        
-        // Calculate the bounds of the selected area
-        const [[x0, y0], [x1, y1]] = path.bounds(d);
-        const dx = x1 - x0;
-        const dy = y1 - y0;
+      barSvg.selectAll("rect")
+        .data(barData)
+        .join("rect")
+        .attr("x", 10)
+        .attr("y", d => y(d.name))
+        .attr("width", d => x(d.count))
+        .attr("height", y.bandwidth())
+        .attr("fill", "#f28e2c");
 
-        // Calculate the center of the selected area
-        const x = (x0 + x1) / 2;
-        const y = (y0 + y1) / 2;
-        
-        // Account for the scale factor (0.98)
-        const scaleFactor = 0.98;
-        const scale = Math.min(3, scaleFactor / Math.max(dx / width, dy / height));
+      barSvg.selectAll("text")
+        .data(barData)
+        .join("text")
+        .attr("x", d => x(d.count) + 14)
+        .attr("y", d => y(d.name) + y.bandwidth() / 2)
+        .attr("dy", "0.35em")
+        .text(d => d.name);
 
-        // Calculate the translation, adjusted for scaling
-        const translate = [
-          width / 2 - scale * x + (width * 0.02), // Adjust for scale to center
-          height / 2 - scale * y + (height * 0.02) // Adjust for scale to center
-        ];
+      // Horizontal Bar – Top 10 Crime Areas
+      d3.csv("data/top_features_per_CA_sorted.csv", d3.autoType).then(areaData => {
+        const topAreas = areaData
+          .slice(0, 10)
+          .map(d => ({ name: d.Community_Area, count: d.Crime_Count }));
 
-        // Apply the transform with the appropriate scaling and translation
-        mapGroup.transition()
-          .duration(1600)
-          .ease(d3.easeCubicInOut)
-          .attr("transform", `translate(${translate}) scale(${scale})`);
-      }
-    });
+        const areaSvg = d3.select("#donut-season")
+          .attr("viewBox", `0 0 300 300`);
 
-svg.on("click", function(event) {
-  const isCommunity = event.target.closest("path.community");
-  if (!isCommunity) {
-    // Reset selection
-    activeCA = null;
+        const xArea = d3.scaleLinear()
+          .domain([0, d3.max(topAreas, d => d.count)])
+          .range([0, 280]);
 
-    // Unselect map regions
-    svg.selectAll("path.community")
-      .classed("selected", false)
-      .classed("dimmed", false);
+        const yArea = d3.scaleBand()
+          .domain(topAreas.map(d => d.name))
+          .range([0, 280])
+          .padding(0.2);
 
-    // Hide the right panels
-    d3.select("#doughnut").classed("hidden", true);
-    d3.select("#indicators-card").classed("hidden", true);
+        areaSvg.selectAll("rect")
+          .data(topAreas)
+          .join("rect")
+          .attr("x", 10)
+          .attr("y", d => yArea(d.name))
+          .attr("width", d => xArea(d.count))
+          .attr("height", yArea.bandwidth())
+          .attr("fill", "#e15759");
 
-    // Reset map zoom
-    mapGroup.transition()
-      .duration(750)
-      .ease(d3.easeCubicInOut)
-      .attr("transform", `translate(${width / 2}, ${height / 2}) translate(-${width / 2}, -${height / 2})`);;
-  }
-});
-
-  mapGroup.append("g")
-    .selectAll("polygon")
-    .data(geojson.features)
-    .join("polygon")
-    .attr("class", "spike")
-    .attr("points", d => {
-      const [x, y] = path.centroid(d);
-      const caId = +d.properties.area_num_1;
-      const rate = avgCrimeByCA.get(caId);
-      const height = rate ? spikeScale(rate) : 0;
-      return [[x, y - height], [x - spikeWidth / 2, y], [x + spikeWidth / 2, y]].map(p => p.join(",")).join(" ");
-    });
-
-  // Tooltip chart (grouped by year)
-  function drawLineChart(caId, communityName) {
-    const yearlyData = Array.from(
-      d3.group(
-        crimes.filter(d => d.CA === caId),
-        d => d.Year
-      ),
-      ([year, values]) => ({
-        date: new Date(+year, 0, 1),
-        rate: d3.mean(values, d => d.Crime_Rate)
-      })
-    ).sort((a, b) => a.date - b.date);
-
-    const avgRate = d3.mean(yearlyData, d => d.rate);
-    tooltipHeader.html(`
-      <strong>${communityName}</strong><br>
-      Avg. Crime Rate: ${avgRate.toFixed(2)}
-    `);
-
-    chartSvg.selectAll("*").remove();
-
-    const margin = { top: 10, right: 10, bottom: 25, left: 35 };
-    const width = 280, height = 120;
-    const innerWidth = width - margin.left - margin.right;
-    const innerHeight = height - margin.top - margin.bottom;
-
-    const x = d3.scaleTime()
-      .domain(d3.extent(yearlyData, d => d.date))
-      .range([0, innerWidth]);
-
-    const y = d3.scaleLinear()
-      .domain([0, d3.max(yearlyData, d => d.rate)])
-      .nice()
-      .range([innerHeight, 0]);
-
-    const g = chartSvg
-      .attr("width", width)
-      .attr("height", height)
-      .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
-    const area = d3.area()
-      .defined(d => !isNaN(d.rate))
-      .x(d => x(d.date))
-      .y0(innerHeight)
-      .y1(d => y(d.rate));
-
-    // g.append("rect")
-    //   .attr("width", innerWidth)
-    //   .attr("height", innerHeight)
-    //   .attr("fill", "#f0f0f0");
-
-    g.append("path")
-      .datum(yearlyData)
-      .attr("fill", "lightsteelblue")
-      .attr("d", area);
-
-    g.append("path")
-      .datum(yearlyData)
-      .attr("fill", "none")
-      .attr("stroke", "#4682b4")
-      .attr("stroke-width", 1.5)
-      .attr("d", d3.line()
-        .defined(d => !isNaN(d.rate))
-        .x(d => x(d.date))
-        .y(d => y(d.rate)));
-
-    g.append("g")
-      .call(d3.axisLeft(y).ticks(3).tickSize(-innerWidth).tickPadding(4))
-      .call(g => g.select(".domain").remove());
-
-    g.append("g")
-      .attr("transform", `translate(0,${innerHeight})`)
-      .call(d3.axisBottom(x)
-        .ticks(d3.timeYear.every(2))
-        .tickFormat(d3.timeFormat("%Y"))
-        .tickPadding(4))
-      .call(g => g.select(".domain").remove());
-  }
-
-  function drawRightChart(caId, community) {
-    renderDoughnutChart(caId, community);
-    renderIndicators(caId);
-  }
-
-  function renderDoughnutChart(caId, community) {
-    d3.select("#doughnut").classed("hidden", false);
-    d3.select("#indicators-card").classed("hidden", false);
-    doughnutTitle.text(`${community} – Crime by Category`);
-
-    const caData = crimeByCategory.find(d => +d[0] === caId);
-    if (!caData) return;
-
-    const data = caData[1].map(([category, count]) => ({ category, count }));
-    data.sort((a, b) => b.count - a.count);
-    const total = d3.sum(data, d => d.count);
-
-    // Format the total with commas
-    const totalFormatted = total.toLocaleString();
-
-    const pastelNice = [
-      "#4c6ef5", "#a5d8ff", "#ffd43b", "#ff6b6b",
-      "#d0bfff", "#63e6be", "#ffa8a8", "#ffcbf2",
-      "#a3c4f3", "#c3f584", "#ffc09f", "#f6b8b8"
-    ];
-
-    const color = d3.scaleOrdinal()
-      .domain(data.map(d => d.category))
-      .range(pastelNice);
-
-    doughnutSvg.selectAll("*").remove();
-    const radius = 160;
-    const g = doughnutSvg.append("g")
-      .attr("transform", `translate(${radius},${radius})`);
-
-    const centerText = g.append("g")
-      .attr("class", "center-text")
-      .attr("text-anchor", "middle");
-
-    const titleText = centerText.append("text")
-      .attr("y", -10)
-      .attr("font-size", "14px")
-      .attr("font-weight", "bold")
-      .attr("fill", "#333")
-      .text("Total");
-
-    const valueText = centerText.append("text")
-      .attr("y", 12)
-      .attr("font-size", "16px")
-      .attr("font-weight", "bold")
-      .attr("fill", "#333")
-      .text(`${totalFormatted} Crimes`);
-
-    const arc = d3.arc()
-      .innerRadius(radius * 0.55)
-      .outerRadius(radius - 10);
-
-    const pie = d3.pie().value(d => d.count);
-
-    let selectedSlice = null;  // To track the currently selected slice
-
-    // Create the pie chart with animation, hover, and click toggle
-    const slices = g.selectAll("path")
-      .data(pie(data))
-      .join("path")
-      .attr("fill", d => color(d.data.category))
-      .attr("d", arc)
-      .style("transition", "transform 0.3s ease")  // Smooth transition for scaling
-      .on("mouseover", (event, d) => {
-        if (!event.target.classList.contains('clicked')) {  // Skip hover effect if clicked
-          // On hover: Increase the slice size and show percentage in center
-          d3.select(event.target)
-            .transition()
-            .duration(200)
-            .attr("transform", "scale(1.1)");  // Scale up the slice on hover
-
-          const percent = ((d.data.count / total) * 100).toFixed(1);
-          titleText.text(d.data.category);
-          valueText.text(`${percent}%`);
-        }
-      })
-      .on("mouseout", (event, d) => {
-        if (!event.target.classList.contains('clicked')) {  // Skip mouseout if clicked
-          // On mouse out: Return to normal size
-          d3.select(event.target)
-            .transition()
-            .duration(200)
-            .attr("transform", "scale(1)");  // Reset the slice size
-
-          // Reset center text to total unless it's selected
-          if (!selectedSlice) {
-            titleText.text("Total");
-            valueText.text(`${totalFormatted} crimes`);
-          }
-        }
-      })
-      .on("click", (event, d) => {
-        if (selectedSlice === event.target) {
-          // Revert back to original size and reset center text
-          d3.select(event.target)
-            .transition()
-            .duration(200)
-            .attr("transform", "scale(1)");  // Reset the slice size
-
-          // Reset the selected slice and center text
-          selectedSlice = null;
-          event.target.classList.remove('clicked');  // Remove 'clicked' class
-          titleText.text("Total");
-          valueText.text(`${totalFormatted} crimes`);
-        } else {
-          // Scale up the clicked slice and update the center text
-          if (selectedSlice) {
-            // Reset the previous selected slice
-            d3.select(selectedSlice)
-              .transition()
-              .duration(200)
-              .attr("transform", "scale(1)")
-              .classed('clicked', false);  // Remove 'clicked' class
-          }
-
-          // Set the new selected slice
-          selectedSlice = event.target;
-          event.target.classList.add('clicked');  // Add 'clicked' class
-
-          d3.select(event.target)
-            .transition()
-            .duration(200)
-            .attr("transform", "scale(1.2)");  // Scale the slice up
-
-          const percent = ((d.data.count / total) * 100).toFixed(1);
-          titleText.text(d.data.category);
-          valueText.text(`${percent}%`);
-        }
-      })
-      .transition()  // Animate the drawing of the slices
-      .duration(1000)
-      .attr("d", arc);  // Apply the arc transition
-
-    // Render legend
-    const legend = d3.select("#legend");
-    legend.selectAll("*").remove();
-
-    legend.selectAll(".legend-item")
-      .data(data)
-      .enter()
-      .append("div")
-      .attr("class", "legend-item")
-      .html(d => {
-        const percent = ((d.count / total) * 100).toFixed(1);
-        return `
-          <div class="legend-swatch" style="background:${color(d.category)}"></div>
-          ${d.category}
-        `;
+        areaSvg.selectAll("text")
+          .data(topAreas)
+          .join("text")
+          .attr("x", d => xArea(d.count) + 14)
+          .attr("y", d => yArea(d.name) + yArea.bandwidth() / 2)
+          .attr("dy", "0.35em")
+          .text(d => d.name);
       });
-  }
 
-  let sortAscending = false;
-  d3.select("#sort-toggle").on("click", () => {
-    sortAscending = !sortAscending;
-    d3.select("#sort-toggle").text(sortAscending ? "▲" : "▼");
-    if (activeCA !== null) renderIndicators(activeCA); // re-render with new order
-  });
+      // Vertical Bar – Crime by Year
+      const yearSvg = d3.select("#bar-year")
+        .attr("viewBox", `0 0 500 300`);
 
-  function renderIndicators(caId) {
-    const indicatorsDiv = d3.select("#indicators");
-    indicatorsDiv.selectAll("*").remove();
+      const yearGroup = d3.group(crimeType, d => d.Year);
+      const yearData = Array.from(yearGroup, ([year, values]) => ({
+        year,
+        count: d3.sum(values, d => d.Crime_Count)
+      })).sort((a, b) => a.year - b.year);
 
-    const indicatorRow = topFeatures.find(d => +d.CA === caId);
-    if (!indicatorRow) return;
+      const xYear = d3.scaleBand()
+        .domain(yearData.map(d => d.year))
+        .range([40, 480])
+        .padding(0.1);
 
-    let indicators = Object.entries(indicatorRow)
-      .filter(([key]) => !["CA", "GEOG", "Crime_Rate"].includes(key))
-      .map(([key, value]) => ({
-        label: key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-        rawKey: key,
-        value: +value,
-        formattedValue: `${(value * 100).toFixed(2).replace(".", ",")}%`
-      }))
-      .sort((a, b) => sortAscending ? a.value - b.value : b.value - a.value);
+      const yYear = d3.scaleLinear()
+        .domain([0, d3.max(yearData, d => d.count)])
+        .range([260, 10]);
 
-    indicatorsDiv
-      .selectAll(".indicator-row")
-      .data(indicators)
-      .enter()
-      .append("div")
-      .attr("class", "indicator-row")
-      .html(d => {
-        const widthPct = Math.max(0, Math.min(1, d.value)) * 100;
-        return `
-          <div class="indicator-label">${d.label} ${d.formattedValue}</div>
-          <div class="indicator-bar-container">
-            <div 
-              class="indicator-bar-fill" 
-              style="width: ${widthPct.toFixed(2)}%;"
-            ></div>
-          </div>
-        `;
-      });
-  }
-});
-// document.body.addEventListener("click", function (e) {
-//   // If the click was not on a map area
-//   if (!e.target.closest("path.community")) {
-//     svg.selectAll("path")
-//       .classed("selected", false)
-//       .classed("dimmed", false);
-//        // Hide data views
-//        d3.select("#doughnut").classed("hidden", true);
-//        d3.select("#indicators-card").classed("hidden", true);
-//   }
-// });
-</script>
+      yearSvg.selectAll("rect")
+        .data(yearData)
+        .join("rect")
+        .attr("x", d => xYear(d.year))
+        .attr("y", d => yYear(d.count))
+        .attr("width", xYear.bandwidth())
+        .attr("height", d => 260 - yYear(d.count))
+        .attr("fill", "#59a14f");
 
+      yearSvg.selectAll("text")
+        .data(yearData)
+        .join("text")
+        .attr("x", d => xYear(d.year) + xYear.bandwidth() / 2)
+        .attr("y", 275)
+        .attr("text-anchor", "middle")
+        .attr("font-size", 10)
+        .text(d => d.year);
+
+      // Line Chart – Crime Rate Over Time
+      const lineSvg = d3.select("#line-rate")
+        .attr("viewBox", `0 0 500 300`);
+
+      const timeGroup = d3.group(crimeGroup, d => `${d.Year}-${String(d.Month).padStart(2, "0")}`);
+      const lineData = Array.from(timeGroup, ([key, values]) => ({
+        date: d3.timeParse("%Y-%m")(key),
+        count: d3.sum(values, d => d.Crime_Count)
+      })).sort((a, b) => d3.ascending(a.date, b.date));
+
+      const xLine = d3.scaleTime()
+        .domain(d3.extent(lineData, d => d.date))
+        .range([40, 480]);
+
+      const yLine = d3.scaleLinear()
+        .domain([0, d3.max(lineData, d => d.count)])
+        .range([260, 10]);
+
+      const line = d3.line()
+        .x(d => xLine(d.date))
+        .y(d => yLine(d.count))
+        .curve(d3.curveMonotoneX);
+
+      lineSvg.append("path")
+        .datum(lineData)
+        .attr("fill", "none")
+        .attr("stroke", "#4e79a7")
+        .attr("stroke-width", 2)
+        .attr("d", line);
+
+      lineSvg.selectAll("circle")
+        .data(lineData)
+        .join("circle")
+        .attr("cx", d => xLine(d.date))
+        .attr("cy", d => yLine(d.count))
+        .attr("r", 2)
+        .attr("fill", "#4e79a7");
+    });
+  </script>
 </body>
 </html>
