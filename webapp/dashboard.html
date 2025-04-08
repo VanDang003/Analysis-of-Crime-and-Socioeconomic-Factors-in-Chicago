@@ -32,6 +32,9 @@
       padding: 10px 16px;
       border-radius: 6px;
       transition: background-color 0.2s ease;
+      flex-shrink: 0;
+      height: 36px;
+      box-sizing: border-box
     }
 
     .summary-btn:hover {
@@ -76,7 +79,7 @@
     .map-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       padding-bottom: 8px;
       padding: 10px 0;
       background: white;
@@ -88,6 +91,9 @@
       z-index: 2;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       border-radius: 6px 6px 0 0;
+      gap: 15px; 
+      padding-left: 16px; 
+      padding-right: 16px;
     }
 
     .header-left-content {
@@ -98,39 +104,38 @@
       margin-right: 10px;
     }
 
-    .map-header .header-left-content { /* Adjusted selector to be more specific if needed */
+    .map-header .header-left-content { 
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       flex-shrink: 1;
       margin-right: 10px;
-      /* --- ADD THIS LINE --- */
-      width: fit-content; /* Make container only as wide as its content */
-      /* --- END ADD --- */
+      /*width: fit-content;*/
     }
 
     .map-header h3 {
       margin-bottom: 3px;
       margin: 0;
+      white-space: nowrap; 
+      flex-shrink: 0; 
       font-size: 18px;
       font-weight: 600;
       line-height: 1.1;
     }
 
     .header-description {
-      font-size: 10px;        /* Smaller text */
-      color: #666;           /* Muted color */
-      line-height: 1.3;     /* Adjust for readability */
-      margin: 0;            /* Remove default margins */
-      padding: 0;           /* Remove default padding */
-      max-width: 40ch;      /* Confined by header-left-content */
+      font-size: 10px;  
+      color: #666;
+      line-height: 1.3;
+      margin: 0;
+      padding: 0; 
+      max-width: 40ch; 
     }
 
     #sort-toggle {
     /* Adjust top margin to better align with the title visually */
-    /* The exact value might need tweaking depending on font sizes */
     margin-top: 2px;
-    align-self: flex-start; /* Align toggle to the top of its flex space */
+    align-self: flex-start; 
     }
 
   
@@ -364,6 +369,21 @@
       display: none;
     }
     
+    .search-container {
+    flex-grow: 1;
+    max-width: 350px;
+    margin-left: auto;
+    }
+
+    #ca-search {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      height: 36px;
+    }
   </style>  
 </head>
 <body>
@@ -372,6 +392,10 @@
   <div id="map-panel" class="card">
     <div class="map-header">
       <h3>Chicago Community Areas</h3>
+      <div class="search-container">
+         <input type="search" id="ca-search" list="ca-list" placeholder="Search Community Area...">
+         <datalist id="ca-list"></datalist>
+      </div>
       <a class="summary-btn" href="index.html">→ Go To Summary</a>
     </div>
     <div class="map-wrapper">
@@ -383,7 +407,7 @@
         </div>
       </div>
     </div>
-  </div>  
+  </div> 
   <div id="doughnut-tooltip"></div>
   <div id="doughnut-panel">
     <div id="doughnut" class="card hidden">
@@ -496,9 +520,95 @@
         })
     );
 
-    const spikeScale = d3.scaleLinear().domain([0, maxAvgCrimeRate]).range([0, 100]);
+    // 1. Create a Map for quick lookup of features by lowercase community name
+    const communityNameMap = new Map();
+    geojson.features.forEach(feature => {
+      if (feature.properties && feature.properties.community) {
+        communityNameMap.set(feature.properties.community.toLowerCase(), feature);
+      }
+    });
 
-    // activeCA is already defined globally
+    // 2. Populate the datalist with community area names
+    const datalist = d3.select("#ca-list");
+    // Get all community names directly from the GeoJSON features
+    const communityNames = geojson.features
+        .map(feature => feature.properties.community) // Extract names
+        .filter(name => name); // Filter out any potential null/undefined names
+
+    // Sort the names alphabetically (case-insensitive using localeCompare)
+    communityNames.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+    // Append the sorted names as options to the datalist
+    communityNames.forEach(communityName => {
+      datalist.append("option").attr("value", communityName);
+    });
+
+    // 3. Add event listener to the search input
+    d3.select("#ca-search").on("change", function(event) {
+      const searchTerm = this.value.trim(); // Get entered value
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+      // Clear the input after selection/change attempt
+      this.value = '';
+
+      if (searchTerm === "") return; // Ignore empty input
+
+      const matchedFeature = communityNameMap.get(lowerCaseSearchTerm);
+
+      if (matchedFeature) {
+        console.log("Found CA:", matchedFeature.properties.community);
+
+        const caId = +matchedFeature.properties.area_num_1;
+        const community = matchedFeature.properties.community;
+
+        // Check if it's the currently active CA - if so, do nothing
+        if (activeCA === caId) {
+          return;
+        }
+
+        // --- Replicate the core logic from the path click handler ---
+        activeCA = caId; // Set the new active CA
+
+        // Update path styles
+        svg.selectAll("path.community")
+          .classed("selected", d => +d.properties.area_num_1 === caId)
+          .classed("dimmed", d => +d.properties.area_num_1 !== caId);
+
+        // Draw the doughnut and indicator charts for the selected CA
+        drawRightChart(caId, community);
+
+        // Calculate zoom/pan transform
+        const [[x0, y0], [x1, y1]] = path.bounds(matchedFeature);
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const x = (x0 + x1) / 2;
+        const y = (y0 + y1) / 2;
+        const targetScale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / width, dy / height)));
+        // Using the same subtle zoom adjustment as in the click handler
+        const adjustedScale = 1 + (targetScale - 1) / 64;
+        const translate = [width / 2 - adjustedScale * x, height / 2 - adjustedScale * y];
+
+        currentScale = adjustedScale; // Update global state
+        currentTranslate = translate; // Update global state
+
+        // Apply the zoom/pan transition
+        mapGroup.transition()
+          .duration(750)
+          .ease(d3.easeCubicInOut)
+          .attr("transform", `translate(${translate}) scale(${adjustedScale})`);
+
+        // Add class for potential styling (though not used in provided CSS)
+        document.getElementById("map-panel").classList.add("zoomed-in");
+        // --- End of replicated click logic ---
+
+      } else {
+        console.log("No CA found matching:", searchTerm);
+        // Optional: Add feedback to the user, e.g., briefly change input border color
+        d3.select(this).style("border-color", "red").transition().duration(1000).style("border-color", "#ccc");
+      }
+    });
+
+    const spikeScale = d3.scaleLinear().domain([0, maxAvgCrimeRate]).range([0, 100]);
 
     mapGroup.selectAll("path")
       .data(geojson.features)
