@@ -436,8 +436,9 @@
     d3.csv("data/crime_rate_by_crime_type.csv", d3.autoType), // <-- Used for map color & spikes
     d3.csv("data/crime_rate_by_crime_group.csv", d3.autoType), // <-- Used for doughnut chart
     d3.csv("data/top_features_per_CA_sorted.csv", d3.autoType), // <-- Used for indicators
+    d3.csv("data/crime_rate_by_crime_group_YEAR.csv", d3.autoType), // <-- Enables filtering by year
     d3.csv("data/CA areas.csv", d3.autoType) // <-- Area data still loaded if needed later
-  ]).then(([geojson, crimes, crimeGroup, features, caAreas]) => {
+  ]).then(([geojson, crimes, crimeGroup, features,crimeGroupbyYear, caAreas]) => {
     // Filter data
     const maxYearToInclude = 2024; // Example: Include data up to end of 2024
     crimes = crimes.filter(d => d.Year <= maxYearToInclude);
