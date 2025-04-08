@@ -371,7 +371,7 @@
 <div id="dashboard">
   <div id="map-panel" class="card">
     <div class="map-header">
-      <h3>Community Map</h3>
+      <h3>Chicago Community Areas</h3>
       <a class="summary-btn" href="index.html">→ Go To Summary</a>
     </div>
     <div class="map-wrapper">
@@ -940,15 +940,15 @@
                 console.error("originalIndicatorOrder is not defined. Cannot sort by importance.");
             }
         } else if (currentSortMode === 'ascending') {
-            indicatorsData.sort((a, b) => a.rawValue - b.rawValue);
+            indicatorsData.sort((a, b) => a.scaledValue - b.scaledValue);
         } else { // 'descending'
-            indicatorsData.sort((a, b) => b.rawValue - a.rawValue);
+            indicatorsData.sort((a, b) => b.scaledValue - a.scaledValue);
         }
         // --- End Sorting Logic Modification ---
 
         if (indicatorsData.length === 0) { indicatorsDiv.html('<p style="font-size: 12px; color: #888; padding: 10px;">No applicable indicators found.</p>'); return; }
 
-        // Generate HTML (using rawValue for color as previously decided)
+        // Generate HTML (using rawValue for color)
         indicatorsDiv.selectAll(".indicator-row")
             .data(indicatorsData)
             .enter()
@@ -961,7 +961,7 @@
                   <div class="indicator-bar-container">
                     <div
                       class="indicator-bar-fill"
-                      style="width: ${widthPct.toFixed(2)}%; background-color: ${d.rawValue * 100 > 66 ? '#d95f0e' : d.rawValue * 100 > 33 ? '#fec44f' : '#a6bddb'};"
+                      style="width: ${widthPct.toFixed(2)}%; background-color: ${d.scaledValue * 100 > 66 ? '#d95f0e' : d.scaledValue * 100 > 33 ? '#fec44f' : '#a6bddb'};"
                     ></div>
                   </div>
                 `;
