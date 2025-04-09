@@ -494,7 +494,6 @@
     // --- Process Crime Data ---
     // Calculate Average Crime Rate per CA (for map color & spikes)
     const avgCrimeByCA = d3.rollup(crimes, v => d3.mean(v, d => d.Crime_Rate), d => d.CA);
-    const totalCrimeByCA = d3.rollup(crimes, v => d3.sum(v, d => d.Crime_Count), d => d.CA);
     console.log("Average Crime Rate by CA (for map color & spikes):", avgCrimeByCA);
 
     // Calculate Crime Counts Grouped by Category (for doughnut)
@@ -504,7 +503,6 @@
     const validAvgRates = Array.from(avgCrimeByCA.values()).filter(d => d != null && !isNaN(d));
     const maxAvgCrimeRate = d3.max(validAvgRates);
     const minAvgCrimeRate = d3.min(validAvgRates);
-    const totCrime = d3.max(Array.from(totalCrimeByCA.values()));
     console.log(`Average Crime Rate range for color scale: ${minAvgCrimeRate} - ${maxAvgCrimeRate}`);
     const avgRateColorScale = d3.scaleSequential(d3.interpolateBlues)
      .domain([minAvgCrimeRate > 0 ? minAvgCrimeRate : 0, maxAvgCrimeRate]);
@@ -624,7 +622,7 @@
       .style("fill", d => {
         const caId = +d.properties.area_num_1;
         const avgRate = avgCrimeByCA.get(caId);
-        return (tot != null && !isNaN(tot)) ? avgRateColorScale(avgRate) : "#eee";
+        return (avgRate != null && !isNaN(avgRate)) ? avgRateColorScale(avgRate) : "#eee";
       })
       .on("mouseover", (event, d) => {
         const caId = +d.properties.area_num_1;
