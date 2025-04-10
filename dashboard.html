@@ -461,12 +461,10 @@
             <!-- Horizontal Stats -->
             <div style="display: flex; gap: 8px; flex-grow: 1;">
               <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 8px;">
-                <div style="font-size: 12px; color: #444;">Unemployment Rate</div>
-                <div id="unemployment-content" style="font-size: 20px; font-weight: bold; color: #b54833;">-- %</div>
+                <div id="summary1-content" style="font-size: 20px; font-weight: bold; color: #b54833; text-align: center;">-- %</div>
               </div>
               <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 8px;">
-                <div style="font-size: 12px; color: #444;">Rent to Income Ratio</div>
-                <div id="rent-income-content" style="font-size: 20px; font-weight: bold; color: #b54833;">-- %</div>
+                <div id="summary2-content" style="font-size: 20px; font-weight: bold; color: #b54833; text-align: center;">-- %</div>
               </div>
             </div>
           </div>
@@ -657,77 +655,79 @@
       datalist.append("option").attr("value", communityName);
     });
 
-    // 3. Add event listener to the search input
-    d3.select("#ca-search").on("change", function(event) {
-      const searchTerm = this.value.trim(); // Get entered value
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+   // 3. Add event listener to the search input
+  d3.select("#ca-search").on("change", function(event) {
+    const searchTerm = this.value.trim(); // Get entered value
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
 
-      // Clear the input after selection/change attempt
-      this.value = '';
+    // Clear the input after selection/change attempt
+    this.value = '';
 
-      if (searchTerm === "") return; // Ignore empty input
+    if (searchTerm === "") return; // Ignore empty input
 
-      const matchedFeature = communityNameMap.get(lowerCaseSearchTerm);
+    const matchedFeature = communityNameMap.get(lowerCaseSearchTerm);
 
-      if (matchedFeature) {
-        console.log("Found CA:", matchedFeature.properties.community);
+    if (matchedFeature) {
+      console.log("Found CA:", matchedFeature.properties.community);
 
-        const caId = +matchedFeature.properties.area_num_1;
-        const community = matchedFeature.properties.community;
+      const caId = +matchedFeature.properties.area_num_1;
+      const community = matchedFeature.properties.community;
 
-        // Check if it's the currently active CA - if so, do nothing
-        if (activeCA === caId) {
-          return;
-        }
-
-        // --- Replicate the core logic from the path click handler ---
-        activeCA = caId; // Set the new active CA
-
-        // Hide static overview, Show charts for selected CA
-        d3.select("#static-card").classed("hidden", true);
-        d3.select("#doughnut").classed("hidden", false);
-        d3.select("#indicators-card").classed("hidden", false);
-
-        renderStaticChart();
-
-        // Update path styles
-        svg.selectAll("path.community")
-          .classed("selected", d => +d.properties.area_num_1 === caId)
-          .classed("dimmed", d => +d.properties.area_num_1 !== caId);
-
-        // Draw the doughnut and indicator charts for the selected CA
-        drawRightChart(caId, community);
-
-        // Calculate zoom/pan transform
-        const [[x0, y0], [x1, y1]] = path.bounds(matchedFeature);
-        const dx = x1 - x0;
-        const dy = y1 - y0;
-        const x = (x0 + x1) / 2;
-        const y = (y0 + y1) / 2;
-        const targetScale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / width, dy / height)));
-        // Using the same subtle zoom adjustment as in the click handler
-        const adjustedScale = 1 + (targetScale - 1) / 64;
-        const translate = [width / 2 - adjustedScale * x, height / 2 - adjustedScale * y];
-
-        currentScale = adjustedScale; // Update global state
-        currentTranslate = translate; // Update global state
-
-        // Apply the zoom/pan transition
-        mapGroup.transition()
-          .duration(750)
-          .ease(d3.easeCubicInOut)
-          .attr("transform", `translate(${translate}) scale(${adjustedScale})`);
-
-        // Add class for potential styling (though not used in provided CSS)
-        document.getElementById("map-panel").classList.add("zoomed-in");
-        // --- End of replicated click logic ---
-
-      } else {
-        console.log("No CA found matching:", searchTerm);
-        // Optional: Add feedback to the user, e.g., briefly change input border color
-        d3.select(this).style("border-color", "red").transition().duration(1000).style("border-color", "#ccc");
+      // Check if it's the currently active CA - if so, do nothing
+      if (activeCA === caId) {
+        console.log("CA is already active, no changes made.");
+        return;
       }
-    });
+
+      // Set the new active CA
+      activeCA = caId;
+
+      // Hide static overview, Show charts for selected CA
+      d3.select("#static-card").classed("hidden", true);
+      d3.select("#doughnut").classed("hidden", false);
+      d3.select("#indicators-card").classed("hidden", false);
+
+      // Log visibility changes
+      console.log("Static card hidden, dynamic charts shown.");
+
+      // Render the static chart
+      renderStaticChart();
+
+      // Update path styles
+      svg.selectAll("path.community")
+        .classed("selected", d => +d.properties.area_num_1 === caId)
+        .classed("dimmed", d => +d.properties.area_num_1 !== caId);
+
+      // Draw the doughnut and indicator charts for the selected CA
+      drawRightChart(caId, community);
+
+      // Calculate zoom/pan transform
+      const [[x0, y0], [x1, y1]] = path.bounds(matchedFeature);
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const x = (x0 + x1) / 2;
+      const y = (y0 + y1) / 2;
+      const targetScale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / width, dy / height)));
+      const adjustedScale = 1 + (targetScale - 1) / 64;
+      const translate = [width / 2 - adjustedScale * x, height / 2 - adjustedScale * y];
+
+      currentScale = adjustedScale; // Update global state
+      currentTranslate = translate; // Update global state
+
+      // Apply the zoom/pan transition
+      mapGroup.transition()
+        .duration(750)
+        .ease(d3.easeCubicInOut)
+        .attr("transform", `translate(${translate}) scale(${adjustedScale})`);
+
+      document.getElementById("map-panel").classList.add("zoomed-in");
+
+    } else {
+      console.log("No CA found matching:", searchTerm);
+      // Optional: Add feedback to the user, e.g., briefly change input border color
+      d3.select(this).style("border-color", "red").transition().duration(1000).style("border-color", "#ccc");
+    }
+  });
 
     const spikeScale = d3.scaleLinear().domain([0, maxAvgCrimeRate]).range([0, 100]);
 
@@ -909,7 +909,8 @@
       g.selectAll(".y-axis text, .x-axis text").attr("font-size", "9px").attr("fill", "#555");
     }
 
-    function renderStaticChart() {const svgStatic = d3.select("#static-chart");
+    function renderStaticChart() {
+      const svgStatic = d3.select("#static-chart");
       svgStatic.selectAll("*").remove();
 
       const outerWidth = svgStatic.node().getBoundingClientRect().width;
@@ -946,31 +947,50 @@
         return (d.Crime_Rate > 0) ? crimeCount / d.Crime_Rate : 0;
       });
 
-      // 3. Weighted Calculations
-      const weightedUnemployment = d3.sum(topFeatures, d => {
-        const crimeCount = crimeCountsByCA.get(d.CA) || 1;
-        return (d.Crime_Rate > 0 && d.unemployment_rate > 0)
-          ? d.unemployment_rate * (crimeCount / d.Crime_Rate)
-          : 0;
-      }) / totalPopulation;
+      // 3. Top Crime Category Calculations
+      const crimeCountsByCategory = d3.rollup(
+        crimeGroupbyYear,
+        v => d3.sum(v, d => d.Crime_Count),
+        d => d.Crime_Category
+      );
 
-      const weightedRentIncome = d3.sum(topFeatures, d => {
-        const crimeCount = crimeCountsByCA.get(d.CA) || 1;
-        return (d.Crime_Rate > 0 && d.rent_to_income > 0)
-          ? d.rent_to_income * (crimeCount / d.Crime_Rate)
-          : 0;
-      }) / totalPopulation;
+      // Convert the Map to an array and sort it
+      const sortedCrimeCounts = Array.from(crimeCountsByCategory.entries())
+        .sort((a, b) => d3.descending(a[1], b[1])); // Sort by count in descending order
 
-      d3.select("#unemployment-content").text(
-        isFinite(weightedUnemployment) && weightedUnemployment > 0
-          ? `${(weightedUnemployment * 100).toFixed(1)}%`
+      // Get the top crime category and its count
+      const topCrimeCategory = sortedCrimeCounts[0] || ["N/A", 0]; // Default to ["N/A", 0] if no data
+
+      // Calculate the percentage of the top crime category
+      const totalCrimeCount = d3.sum(sortedCrimeCounts, d => d[1]); // Total crime count
+      const topCrimeCategoryPercentage = totalCrimeCount > 0 ? (topCrimeCategory[1] / totalCrimeCount) * 100 : 0;
+
+      // Update the topCrimes content to show the top crime category and its percentage
+      d3.select("#summary1-content").html(
+        isFinite(topCrimeCategoryPercentage) && topCrimeCategoryPercentage > 0
+          ? `${topCrimeCategory[0]}:<br>${topCrimeCategoryPercentage.toFixed(1)}%`
           : "N/A"
       );
 
-      d3.select("#rent-income-content").text(
-        isFinite(weightedRentIncome) && weightedRentIncome > 0
-          ? `${(weightedRentIncome * 100).toFixed(1)}%`
-          : "N/A"
+      // 4. YoY growth
+      // Assuming crimeGroupbyYear is already available for 2023 and 2024
+
+      // 1. Filter the data for the years 2023 and 2024
+      const crime2023 = crimeGroupbyYear.filter(d => d.Year === 2023);
+      const crime2024 = crimeGroupbyYear.filter(d => d.Year === 2024);
+
+      // 2. Calculate the total crime count for each year
+      const totalCrimeCount2023 = d3.sum(crime2023, d => d.Crime_Count);
+      const totalCrimeCount2024 = d3.sum(crime2024, d => d.Crime_Count);
+
+      // 3. Calculate Year-over-Year Growth
+      const yoyGrowth = totalCrimeCount2023 > 0 
+        ? ((totalCrimeCount2024 - totalCrimeCount2023) / totalCrimeCount2023) * 100 
+        : 0;
+
+      // 4. Display the results under #summary2-content
+      d3.select("#summary2-content").html(
+        `YoY 23-24:<br>${yoyGrowth.toFixed(2)}%`
       );
 
       // Line Chart Data
@@ -1006,43 +1026,64 @@
         .attr("transform", `translate(0,${height})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")).tickSizeOuter(0));
 
+      // Function to lighten a color
+      function lightenColor(color, percent) {
+        const num = parseInt(color.slice(1), 16); // Convert hex to RGB
+        const amt = Math.round(2.55 * percent); // Calculate the amount to lighten
+        const r = (num >> 16) + amt; // Extract red
+        const g = (num >> 8 & 0x00FF) + amt; // Extract green
+        const b = (num & 0x0000FF) + amt; // Extract blue
+
+        // Ensure values are within 0-255 range
+        const newR = Math.min(255, Math.max(0, r));
+        const newG = Math.min(255, Math.max(0, g));
+        const newB = Math.min(255, Math.max(0, b));
+
+        return `#${(0x1000000 + (newR << 16) + (newG << 8) + newB).toString(16).slice(1)}`; // Convert back to hex
+      }
+
       // Ranking Box Generator
       function buildRankSection(title, items, valueFormatter) {
-  return `
-    <div style="display: flex; flex-direction: column; gap: 8px;">
-      <!-- 1st Place Grand Card -->
-      <div style="
-          background: #fafafa;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          padding: 12px;
-          text-align: center;
-      ">
-        <div style="font-size: 24px; font-weight: bold; color: rgb(217, 95, 14);">${items[0][0]}</div>
-        <div style="font-size: 13px; color: #888;">${valueFormatter(items[0][1])}</div>
-      </div>
+        const baseColor = "#D95F0E"; // Base color for the top rank
 
-      <!-- 2nd & 3rd Place Small Cards -->
-      <div style="display: flex; gap: 6px;">
-        ${items.slice(1).map(([label, value], idx) => `
-          <div style="
-              flex: 1;
-              background: #fafafa;
-              border: 1px solid #ddd;
-              border-radius: 6px;
-              padding: 8px;
-              text-align: center;
-          ">
-            <div style="font-size: 16px; font-weight: bold; color: rgb(217, 95, 14);">${label}</div>
-            <div style="font-size: 10px; color: #aaa;">${valueFormatter(value)}</div>
+        return `
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- 1st Place Grand Card -->
+            <div style="
+                background: #fafafa;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                padding: 12px;
+                text-align: center;
+            ">
+              <div style="font-size: 24px; font-weight: bold; color: ${baseColor};">${items[0][0]}</div>
+              <div style="font-size: 13px; color: #888;">${valueFormatter(items[0][1])}</div>
+            </div>
+
+            <!-- 2nd & 3rd Place Small Cards -->
+            <div style="display: flex; gap: 6px;">
+              ${items.slice(1).map(([label, value], idx) => {
+                // Lighten the base color for 2nd and 3rd places
+                const color = idx === 0 ? lightenColor(baseColor, 20) : lightenColor(baseColor, 40); // 20% lighter for 2nd, 40% for 3rd
+
+                return `
+                  <div style="
+                      flex: 1;
+                      background: #fafafa;
+                      border: 1px solid #ddd;
+                      border-radius: 6px;
+                      padding: 8px;
+                      text-align: center;
+                  ">
+                    <div style="font-size: 16px; font-weight: bold; color: ${color};">${label}</div>
+                    <div style="font-size: 10px; color: #aaa;">${valueFormatter(value)}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
           </div>
-        `).join('')}
-      </div>
-
-    </div>
-  `;
-}
-
+        `;
+      }
 
       // Top Crime Categories
       const categoryTotals = d3.rollups(
