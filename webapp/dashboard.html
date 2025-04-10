@@ -608,7 +608,11 @@
 
     // Calculate Crime Counts Grouped by Category (for doughnut)
     crimeByCategory = d3.rollups(crimeGroup, v => d3.sum(v, d => d.Crime_Count), d => d.CA, d => d.Crime_Category);
-
+    
+    // Calculate total crime
+    const totalCrimeByCA = d3.rollup(crimes, v => d3.sum(v, d => d.Crime_Count), d => d.CA);
+    const totCrime = d3.max(Array.from(totalCrimeByCA.values()));
+    
     // --- Map Coloring Logic based on Average Crime Rate ---
     const validAvgRates = Array.from(avgCrimeByCA.values()).filter(d => d != null && !isNaN(d));
     const maxAvgCrimeRate = d3.max(validAvgRates);
@@ -730,7 +734,10 @@
     });
 
     const spikeScale = d3.scaleLinear().domain([0, maxAvgCrimeRate]).range([0, 100]);
-
+    const colorScale = d3.scaleQuantize()
+    .domain([0, totCrime])
+    .range(d3.schemeBlues[7]);
+    
     mapGroup.selectAll("path")
       .data(geojson.features)
       .join("path")
@@ -738,8 +745,8 @@
       .attr("d", path)
       .style("fill", d => {
         const caId = +d.properties.area_num_1;
-        const avgRate = avgCrimeByCA.get(caId);
-        return (avgRate != null && !isNaN(avgRate)) ? avgRateColorScale(avgRate) : "#eee";
+        const tot = totalCrimeByCA.get(caId);
+        return (tot != null && !isNaN(tot)) ? colorScale(tot) : "#eee";
       })
       .on("mouseover", (event, d) => {
         const caId = +d.properties.area_num_1;
