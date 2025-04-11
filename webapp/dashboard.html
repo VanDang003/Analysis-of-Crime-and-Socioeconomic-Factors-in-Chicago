@@ -601,10 +601,38 @@
     // --- Map Coloring Logic based on Average Crime Rate ---
     const validAvgRates = Array.from(avgCrimeByCA.values()).filter(d => d != null && !isNaN(d));
     const maxAvgCrimeRate = d3.max(validAvgRates);
-    const minAvgCrimeRate = d3.min(validAvgRates);
-    console.log(`Average Crime Rate range for color scale: ${minAvgCrimeRate} - ${maxAvgCrimeRate}`);
-    const avgRateColorScale = d3.scaleSequential(d3.interpolateBlues)
-     .domain([minAvgCrimeRate > 0 ? minAvgCrimeRate : 0, maxAvgCrimeRate]);
+    // We need the minimum *positive* rate for the domain start
+    const minPositiveAvgCrimeRate = d3.min(validAvgRates.filter(rate => rate > 0));
+
+    // Define a very small fallback if no positive rates exist
+    const domainStart = minPositiveAvgCrimeRate === undefined ? 0.01 : minPositiveAvgCrimeRate;
+
+    console.log(`Using Power Scale. Domain: ${domainStart} - ${maxAvgCrimeRate}`);
+
+    // Define the Power scale to map crime rate -> [0, 1] non-linearly
+    // This scale determines *where* in the gradient a crime rate falls
+    const valueToInterpolatorInputScale = d3.scalePow()
+        .exponent(1) // <<< TUNE THIS (0.5=sqrt, <0.5 more compression, >0.5 less)
+        .domain([domainStart, maxAvgCrimeRate]) 
+        .range([0, 1])
+        .clamp(true);
+
+    // Define the final function that gets the color
+    // This keeps the same function name you had before for compatibility
+    const avgRateColorScale = (rate) => {
+        // Handle invalid or out-of-domain rates (rates below domainStart are treated as minimal)
+        if (rate == null || isNaN(rate)) {
+             return "#eee"; // Use grey for invalid data
+        }
+        // Ensure rates below domainStart map to the start color (optional but clean)
+        const effectiveRate = Math.max(rate, domainStart);
+
+        // Get the position (0 to 1) in the gradient using the power scale
+        const interpolatorInput = valueToInterpolatorInputScale(effectiveRate);
+
+        // Get the actual color from the Blues interpolator
+        return d3.interpolateBlues(interpolatorInput);
+    };
     // --- End Map Coloring Logic ---
 
     const projection = d3.geoMercator();
@@ -837,27 +865,6 @@
     });
 
 
-    mapGroup.append("g")
-      .selectAll("polygon")
-      .data(geojson.features.filter(d => {
-        const caId = +d.properties.area_num_1;
-        return avgCrimeByCA.has(caId) && avgCrimeByCA.get(caId) != null;
-      }))
-      .join("polygon")
-      .attr("class", "spike")
-      .attr("points", d => {
-        const [x, y] = path.centroid(d);
-        const caId = +d.properties.area_num_1;
-        const rate = avgCrimeByCA.get(caId);
-        const spikeHeight = (rate && rate > 0) ? spikeScale(rate) : 0;
-        const finalHeight = Math.max(0, spikeHeight);
-        const baseWidth = spikeWidth / currentScale;
-        return [
-          [x, y - finalHeight],
-          [x - baseWidth / 2, y],
-          [x + baseWidth / 2, y]
-        ].map(p => p.join(",")).join(" ");
-      });
 
     renderStaticChart();
 
