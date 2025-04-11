@@ -192,7 +192,7 @@
       color: #666;
       background: #fafafa;
       border: 1px solid #ddd;
-      height: 150px; /* Or adjust */
+      height: 150px;
     }
 
   
@@ -201,6 +201,13 @@
       fill: #ff5252;
       opacity: 0.5;
       pointer-events: none;
+    }
+
+    #dynamic-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
     }
   
     /* === Doughnut Panel === */
@@ -397,6 +404,7 @@
       box-sizing: border-box;
       height: 36px;
     }
+
     #year-select
     {
       width: 40%;
@@ -407,6 +415,7 @@
       box-sizing: border-box;
       height: 36px;
     }
+    
     #year-select:focus {
       border-color: #999;
       outline: none;
@@ -708,9 +717,6 @@
       const searchTerm = this.value.trim(); // Get entered value
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
 
-      // Clear the input after selection/change attempt
-      this.value = '';
-
       if (searchTerm === "") return; // Ignore empty input
 
       const matchedFeature = communityNameMap.get(lowerCaseSearchTerm);
@@ -720,17 +726,16 @@
 
         const caId = +matchedFeature.properties.area_num_1;
         const community = matchedFeature.properties.community;
+        this.value = community;
 
-        // Check if it's the currently active CA - if so, do nothing
-        if (activeCA === caId) {
-          return;
-        }
+        if (activeCA === caId) return;
 
         // --- Replicate the core logic from the path click handler ---
         activeCA = caId; // Set the new active CA
 
         // Hide static overview, Show charts for selected CA
-        d3.select("#static-card").classed("hidden", true);
+        d3.select("#static-layout").style("display", "none");
+
         d3.select("#doughnut").classed("hidden", false);
         d3.select("#indicators-card").classed("hidden", false);
 
@@ -742,6 +747,7 @@
           .classed("dimmed", d => +d.properties.area_num_1 !== caId);
 
         // Draw the doughnut and indicator charts for the selected CA
+        showRightPanel();
         drawRightChart(caId, community);
 
         // Calculate zoom/pan transform
@@ -1606,6 +1612,7 @@
         .attr("transform", `translate(0,0) scale(1)`);
 
       document.getElementById("map-panel").classList.remove("zoomed-in");
+      document.getElementById("ca-search").value = ''; // Clear search bar
 
       showStaticPanel();
     }
