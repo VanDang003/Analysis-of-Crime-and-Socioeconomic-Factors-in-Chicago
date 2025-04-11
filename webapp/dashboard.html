@@ -430,7 +430,7 @@
           <input type="search" id="ca-search" list="ca-list" placeholder="Search Community Area...">
           <datalist id="ca-list"></datalist>
         </div>
-        <a class="summary-btn" href="index.html">→ Go To Summary</a>
+        <!-- <a class="summary-btn" href="index.html">→ Go To Summary</a> -->
       </div>
       <div class="map-wrapper">
         <div id="map">
@@ -449,7 +449,7 @@
       
       <!-- Static Layout (2x2 Grid) -->
       <div id="static-layout" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
-        <!-- Top Row -->
+        
         <!-- <div style="display: flex; gap: 12px; flex: 1;">
           <div id="static-extra2" class="card" style="flex: 1;">
             <h3>Safest Community Areas</h3>
@@ -461,37 +461,30 @@
             <div id="highest-ca-content" style="margin-top: 8px; font-size: 14px; color: #555;"></div>
           </div>
         </div> -->
-        
+        <!-- Top Row -->
         <div id="static-card" class="card" style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 12px;">
           <div class="map-header">
             <h3>Top Crime-Linked Indicators</h3>
-          </div>
-        
+          </div>        
           <svg id="indicator-bar-chart" height="180"></svg>
         </div>
-        <!-- Middle Row -->
-        
-        <div style="display: flex; gap: 12px; flex: 1;">
 
-          <!-- Left Box: Citywide Summary -->
-       
+        <!-- Middle Row -->        
+        <div style="display: flex; gap: 12px; flex: 1;">
+          <!-- Left Box: Citywide Summary -->       
           <div id="yoy-dot-card" class="card" style="flex: 1; padding: 12px;">
             <div class="map-header"><h3>Crime Rate by Category (2024 vs Avg)</h3></div>
             <svg id="yoy-dot-svg" height="240"></svg>
-          </div>
-          
-          
-
-          
+          </div>       
         </div>
+
         <!-- Bottom Row -->
         <div style="display: flex; gap: 12px; flex: 1;">
           <div style="display: flex; gap: 12px; flex: 1;">
             <div id="safest-card" class="card" style="flex: 1; padding: 12px;">
               <div class="map-header"><h3>Safest and Riskiest Areas</h3></div>
               <svg id="safest-bar-chart" height="140"></svg>
-            </div>
-  
+            </div>  
             <!-- <div id="static-extra3" class="card" style="flex: 1;">
               <h3>Most Crime-Ridden Areas</h3>
               <div id="highest-ca-content" style="margin-top: 8px; font-size: 14px; color: #555;"></div>
@@ -503,13 +496,11 @@
           </div>
         </div>
         <div class="card" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-          <h3 style="margin: 0;">Crime Trend Over Time</h3>
-        
+          <h3 style="margin: 0;">Crime Trend Over Time</h3>        
           <div style="flex: 1; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 8px; display: flex; justify-content: center; align-items: center;">
             <svg id="static-chart"></svg>
           </div>
-        </div>
-        
+        </div>      
       </div>
   
       <!-- Dynamic Layout (Doughnut + Indicators) -->
@@ -534,8 +525,7 @@
           </div>
           <div id="indicators"></div>
         </div>
-      </div>
-  
+      </div>  
     </div>
   </div> 
 
