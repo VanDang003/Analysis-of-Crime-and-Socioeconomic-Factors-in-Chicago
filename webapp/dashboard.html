@@ -384,7 +384,7 @@
     
     .search-container {
     flex-grow: 1;
-    max-width: 350px;
+    max-width: 550px;
     margin-left: auto;
     }
 
@@ -396,6 +396,20 @@
       border-radius: 4px;
       box-sizing: border-box;
       height: 36px;
+    }
+    #year-select
+    {
+      width: 40%;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      height: 36px;
+    }
+    #year-select:focus {
+      border-color: #999;
+      outline: none;
     }
 
     /* Animation for sliding in/out */
@@ -426,7 +440,20 @@
     <div id="map-panel" class="card">
       <div class="map-header">
         <h3>Chicago Community Areas</h3>
-        <div class="search-container">
+        <div class="search-container" style="display: flex; gap: 12px; align-items: center;">
+          <select id="year-select" style="margin-left: 12px; padding: 4px; font-size: 13px;">
+            <option value="all" selected>All Years</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+            <option value="2020">2020</option>
+            <option value="2019">2019</option>
+            <option value="2018">2018</option>
+            <option value="2017">2017</option>
+            <option value="2016">2016</option>
+            <option value="2015">2015</option>
+          </select>
           <input type="search" id="ca-search" list="ca-list" placeholder="Search Community Area...">
           <datalist id="ca-list"></datalist>
         </div>
@@ -536,11 +563,13 @@
   const chartSvg = d3.select("#tooltip-chart");
   const doughnutSvg = d3.select("#doughnut-chart");
   const doughnutTitle = d3.select("#doughnut-title");
-
+ 
   const mapContainer = document.getElementById("map");
   const width = mapContainer.clientWidth || window.innerWidth * 0.6;
   const height = mapContainer.clientHeight || window.innerHeight;
 
+
+   let selectedYear = null; // <-- Variable to hold selected year
   const spikeWidth = 10;
 
   let currentScale = 1;
@@ -911,6 +940,10 @@
         });
       });
 
+      const rankColorScale = d3.scaleOrdinal()
+        .domain([4,3, 2, 1, 0])
+        .range(["#c6dbef", "#a6bddb","#6baed6", "#fec44f", "#d95f0e"]);
+
       const data = topIndicatorMeta.slice().sort((a, b) => b.avg - a.avg);
       const x = d3.scaleLinear().domain([0, d3.max(data, d => d.avg)]).range([0, innerWidth]);
       const y = d3.scaleBand().domain(data.map(d => d.label)).range([0, innerHeight]).padding(0.2);
@@ -925,7 +958,7 @@
         .attr("y", d => y(d.label))
         .attr("height", y.bandwidth())
         .attr("width", d => x(d.avg))
-        .attr("fill", d => d.correlation > 0 ? "#d95f0e" : "#3182bd")
+        .attr("fill", (d, i) => rankColorScale(i))
         .attr("rx", 6) ;
 
       g.selectAll(".label")
@@ -1192,14 +1225,19 @@
             .attr("fill", "#f0f0f0");
 
           // Filled bar (color-coded)
-          const fill = i < 2 ? "#a6bddb" : "#d95f0e";  // blue for safest, red for highest
+          const colorPalette = ["#c6dbef", "#a6bddb", "#fec44f", "#d95f0e"];
+          const colorMap = {};
+
+          selected.forEach((d, i) => {
+            colorMap[d.GEOG] = colorPalette[i]; // Safe → Risky
+          });
           group.append("rect")
             .attr("x", 0)
             .attr("y", 0)
             .attr("width", barWidth)
             .attr("height", barHeight)
             .attr("rx", barHeight / 2)
-            .attr("fill", fill);
+            .attr("fill", colorMap[d.GEOG] || "#ccc"); // fallback color if needed
 
           // Community name
           group.append("text")
@@ -1285,9 +1323,9 @@
 
       // Assign exact colors by GEOG
       const colorMap = {
-        "Edison Park": "#a6bddb",     // safest
-        "Forest Glen": "#bcd6e4",     // second-safest
-        "West Garfield Park": "#fdae91",       // second-riskiest
+        "Edison Park": "#c6dbef",     // safest
+        "Forest Glen": "#a6bddb",     // second-safest
+        "West Garfield Park": "#fec44f",       // second-riskiest
         "Fuller Park": "#d95f0e"      // riskiest
       };
 
@@ -1331,9 +1369,11 @@
         .attr("transform", `translate(${margin.left}, 10)`);
 
       const legendRowHeight = 16;
-      const legendColWidth = 140; // adjust based on label width
+      const legendColWidth = 140;
 
-      areas.forEach((area, i) => {
+      const legendAreas = Object.keys(colorMap); // in your preferred order
+
+      legendAreas.forEach((area, i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
 
@@ -1343,7 +1383,7 @@
         group.append("rect")
           .attr("width", 10)
           .attr("height", 10)
-          .attr("fill", colorMap[area] || "#ccc");
+          .attr("fill", colorMap[area]);
 
         group.append("text")
           .attr("x", 14)
@@ -1353,7 +1393,7 @@
       });
 
     }
-        
+      
 
 
     function renderStaticChart() {const svgStatic = d3.select("#static-chart");
