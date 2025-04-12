@@ -716,6 +716,9 @@
       const searchTerm = this.value.trim(); // Get entered value
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
 
+      // Clear the input after selection/change attempt
+      this.value = '';
+
       if (searchTerm === "") return; // Ignore empty input
 
       const matchedFeature = communityNameMap.get(lowerCaseSearchTerm);
@@ -725,13 +728,12 @@
 
         const caId = +matchedFeature.properties.area_num_1;
         const community = matchedFeature.properties.community;
-        this.value = community;
 
         if (activeCA === caId) return;
 
         // --- Replicate the core logic from the path click handler ---
         activeCA = caId; // Set the new active CA
-        document.getElementById("ca-search").value = community || '';
+        // document.getElementById("ca-search").value = community || ''; // Sticks the CA name to search bar -Bad UX
 
         // Hide static overview, Show charts for selected CA
         d3.select("#static-layout").style("display", "none");
@@ -850,7 +852,7 @@
         } else {
           // Select New CA
           activeCA = caId;
-          document.getElementById("ca-search").value = community || '';
+          // document.getElementById("ca-search").value = community || ''; // Fills in search bar with CA name - Bad UX
 
           svg.selectAll("path.community")
             .classed("selected", dd => dd === d)
