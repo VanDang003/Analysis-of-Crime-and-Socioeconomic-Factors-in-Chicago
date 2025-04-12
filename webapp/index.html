@@ -127,7 +127,7 @@
       line-height: 1.3;
       margin: 0;
       padding: 0; 
-      max-width: 40ch; 
+      max-width: 75ch; 
     }
 
     #sort-toggle {
@@ -768,6 +768,7 @@
           .duration(750)
           .ease(d3.easeCubicInOut)
           .attr("transform", `translate(${translate}) scale(${adjustedScale})`);
+          
 
         // Add class for potential styling (though not used in provided CSS)
         document.getElementById("map-panel").classList.add("zoomed-in");
