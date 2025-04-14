@@ -11,17 +11,16 @@
       margin: 0;
       font-family: sans-serif;
       background: #f3f3f3;
+      overflow: hidden;
     }
   
     #dashboard {
-      width: 2300px;
-      height: 1190px;
-      margin: 0 auto; /* optional: center horizontally */
+      width: 100vw;
+      height: 100vh;
       display: flex;
       gap: 20px;
       padding: 20px;
       box-sizing: border-box;
-      overflow: hidden;
     }
     .summary-btn {
       background-color: #d95f0e;
@@ -49,7 +48,6 @@
       padding: 16px;
       width: 100%;
       box-sizing: border-box;
-      overflow: hidden;
       display: flex;
       flex-direction: column;
     }
@@ -67,13 +65,13 @@
   
     /* === Map Panel === */
     #map-panel {
-      flex: 6;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 16px;
-      background: white;
-      box-sizing: border-box;
+     flex: 5;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+     padding: 16px;
+     background: white;
+     box-sizing: border-box;
     }
   
     .map-header {
@@ -147,7 +145,7 @@
       height: 100%;
       background: #f3f3f3;
       position: relative;
-      padding: 0; /* optional */
+      padding: 0; 
     }
   
     #map svg {
@@ -206,19 +204,30 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      height: 100%;
+      flex-shrink: 0;
+    }
+
+
+  #static-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-shrink: 0;
     }
   
     /* === Doughnut Panel === */
     #doughnut-panel {
       flex: 4;
-      height: 100%;
-      max-height: 100%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       box-sizing: border-box;
       gap: 12px;
+      overflow-y: auto; 
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      padding: 16px;
     }
   
     #doughnut {
@@ -425,6 +434,25 @@
       animation: slideIn 0.4s ease forwards;
     }
 
+    #static-layout > .card:last-child {
+      height: 300px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #static-card {
+      height: 250px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+
+    #yoy-dot-card {
+      height: 280px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
     .slide-out {
       animation: slideOut 0.4s ease forwards;
     }
@@ -483,7 +511,7 @@
     <div id="doughnut-panel">
       
       <!-- Static Layout (2x2 Grid) -->
-      <div id="static-layout" style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
+      <div id="static-layout" style="display: flex; flex-direction: column; gap: 12px;">
         
         <!-- <div style="display: flex; gap: 12px; flex: 1;">
           <div id="static-extra2" class="card" style="flex: 1;">
@@ -497,7 +525,7 @@
           </div>
         </div> -->
         <!-- Top Row -->
-        <div id="static-card" class="card" style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 12px;">
+        <div id="static-card" class="card" style="display: flex; flex-direction: column; gap: 8px; padding: 12px;">
           <div class="map-header">
             <h3>Top Crime-Linked Indicators</h3>
           </div>        
@@ -505,7 +533,7 @@
         </div>
 
         <!-- Middle Row -->        
-        <div style="display: flex; gap: 12px; flex: 1;">
+        <div style="display: flex; gap: 12px;">
           <!-- Left Box: Citywide Summary -->       
           <div id="yoy-dot-card" class="card" style="flex: 1; padding: 12px;">
             <div class="map-header"><h3>Crime Rate by Category (2024 vs Avg)</h3></div>
@@ -514,7 +542,7 @@
         </div>
 
         <!-- Bottom Row -->
-        <div style="display: flex; gap: 12px; flex: 1;">
+        <div style="display: flex; gap: 12px;">
           <div style="display: flex; gap: 12px; flex: 1;">
             <div id="safest-card" class="card" style="flex: 1; padding: 12px;">
               <div class="map-header"><h3>Safest and Riskiest Areas</h3></div>
@@ -530,7 +558,7 @@
             </div>
           </div>
         </div>
-        <div class="card" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px;">
           <h3 style="margin: 0;">Crime Trend Over Time</h3>        
           <div style="flex: 1; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 8px; display: flex; justify-content: center; align-items: center;">
             <svg id="static-chart"></svg>
@@ -1100,15 +1128,19 @@
       const y = d3.scaleBand()
         .domain(categories)
         .range([0, innerHeight])
-        .padding(0.3);
+        .padding(1.0);
 
+      const allRates = filtered.flatMap(d => [d.rateAvg, d.rate2024]).filter(r => r != null && isFinite(r));
+      const [minRate, maxRate] = d3.extent(allRates);
+      const dataRange = (maxRate - minRate) || Math.max(1, maxRate);
+      const padding = dataRange * 0.05; // 5% padding
+      const domainMin = minRate - padding;
+      const domainMax = maxRate + padding;
+
+      // Define the x scale with the padded domain
       const x = d3.scaleLinear()
-        .domain([
-          0,
-          d3.max(filtered, d => Math.max(d.rate2024, d.rateAvg))
-        ])
+        .domain([domainMin, domainMax])
         .range([0, innerWidth])
-        .nice();
 
       const g = svg.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -1133,7 +1165,7 @@
         .attr("transform", `translate(0, ${innerHeight})`)
         .selectAll("line")
         .attr("stroke", "#ccc")
-        .attr("stroke-dasharray", "2,2");  // optional dashed line
+        .attr("stroke-dasharray", "2,2"); 
 
       // Green dots (average)
       g.selectAll(".dot-avg")
