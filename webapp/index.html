@@ -347,9 +347,9 @@
   
     /* === Tooltip === */
     .tooltip {
+      border: 1px solid #ccc;
       position: absolute;
       background: white;
-      border: 1px solid #ccc;
       border-left: 4px solid #4c6ef5;
       padding: 12px 16px;
       font-size: 13px;
@@ -814,6 +814,7 @@
         return (avgRate != null && !isNaN(avgRate)) ? avgRateColorScale(avgRate) : "#eee";
       })
       .on("mouseover", (event, d) => {
+        //console.log("Hover on:", d.properties.community);
         const caId = +d.properties.area_num_1;
         const communityName = d.properties.community;
         drawLineChart(caId, communityName);
@@ -935,6 +936,43 @@
     });
 
     renderStaticChart();
+
+    // --- Tooltip Line Chart ---
+    function drawLineChart(caId, communityName) {
+       const yearlyData = Array.from(
+        d3.group(
+          crimes.filter(d => d.CA === caId),
+          d => d.Year
+        ),
+        ([year, values]) => ({
+          date: new Date(+year, 0, 1),
+          rate: d3.mean(values, d => d.Crime_Rate)
+        })
+      ).sort((a, b) => a.date - b.date);
+      const overallAvgRate = avgCrimeByCA.get(caId);
+      tooltipHeader.html(`
+        <strong>${communityName} (CA ${caId})</strong><br>
+        Avg. Crime Rate: ${overallAvgRate != null ? overallAvgRate.toFixed(2) : 'N/A'}`
+      );
+      chartSvg.selectAll("*").remove();
+      const margin = { top: 10, right: 10, bottom: 25, left: 35 };
+      const chartWidth = 280, chartHeight = 120;
+      const innerWidth = chartWidth - margin.left - margin.right;
+      const innerHeight = chartHeight - margin.top - margin.bottom;
+      if (!yearlyData || yearlyData.length === 0 || !yearlyData.some(d => d.rate != null && !isNaN(d.rate))) {
+          chartSvg.append("text").attr("x", chartWidth / 2).attr("y", chartHeight / 2).attr("text-anchor", "middle").attr("font-size", "12px").attr("fill", "#888").text("Crime rate data not available"); return;
+      }
+      const x = d3.scaleTime().domain(d3.extent(yearlyData, d => d.date)).range([0, innerWidth]);
+      const yDomain = d3.extent(yearlyData, d => d.rate);
+      const y = d3.scaleLinear().domain([0, yDomain[1]]).nice().range([innerHeight, 0]);
+      const g = chartSvg.attr("width", chartWidth).attr("height", chartHeight).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+      const area = d3.area().defined(d => !isNaN(d.rate)).x(d => x(d.date)).y0(innerHeight).y1(d => y(d.rate));
+      g.append("path").datum(yearlyData).attr("fill", "lightsteelblue").attr("opacity", 0.7).attr("d", area);
+      g.append("path").datum(yearlyData).attr("fill", "none").attr("stroke", "#4682b4").attr("stroke-width", 1.5).attr("d", d3.line().defined(d => !isNaN(d.rate)).x(d => x(d.date)).y(d => y(d.rate)));
+      g.append("g").attr("class", "y-axis").call(d3.axisLeft(y).ticks(3).tickSize(-innerWidth).tickPadding(4)).call(g => g.select(".domain").remove()).call(g => g.selectAll(".tick line").attr("stroke", "#ddd"));
+      g.append("g").attr("class", "x-axis").attr("transform", `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(d3.timeYear.every(4)).tickFormat(d3.timeFormat("%Y")).tickPadding(4)).call(g => g.select(".domain").remove()).call(g => g.selectAll(".tick line").remove());
+      g.selectAll(".y-axis text, .x-axis text").attr("font-size", "9px").attr("fill", "#555");
+    }
 
     function renderTopIndicatorBarChart(featureData) {
       const svg = d3.select("#indicator-bar-chart");
