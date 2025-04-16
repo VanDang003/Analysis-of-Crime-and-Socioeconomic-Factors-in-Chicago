@@ -1562,24 +1562,19 @@
           ? d.rent_to_income * (crimeCount / d.Crime_Rate)
           : 0;
       }) / totalPopulation;
-
-      renderTopIndicatorBarChart(filteredTopFeatures);
+      
+      renderTopIndicatorBarChart(topFeatures);
       renderCrimeRateDotComparison(filteredCrimeGroupData);
-      renderExtremeCommunityBars(filteredTopFeatures);
-      const groupedBarChartData = computeGroupedBarChartData(filteredTopFeatures);
+      renderExtremeCommunityBars(topFeatures);
+      const groupedBarChartData = computeGroupedBarChartData(topFeatures);
       renderGroupedSocioIndicators(groupedBarChartData);
 
-      const yearlyCrime = selectedYear !== null
-        ? d3.rollups(
-            filteredCrimeGroupData,
-            v => d3.sum(v, d => d.Crime_Count),
-            d => d.Year
-          ).map(([Year, Total]) => ({ Year: +Year, Total }))
-        : d3.rollups(
-            crimeGroupbyYear,
-            v => d3.sum(v, d => d.Crime_Count),
-            d => d.Year
-          ).map(([Year, Total]) => ({ Year: +Year, Total }));
+      const yearlyCrime = d3.rollups(
+          crimeGroupbyYear.filter(d => selectedYear === null || +d.Year <= selectedYear),
+          v => d3.sum(v, d => d.Crime_Count),
+          d => d.Year
+      ).map(([Year, Total]) => ({ Year: +Year, Total }))
+        .sort((a, b) => a.Year - b.Year);
 
       const x = d3.scaleLinear()
         .domain(d3.extent(yearlyCrime, d => d.Year))
