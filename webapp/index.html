@@ -315,6 +315,18 @@
     #indicators::-webkit-scrollbar {
       width: 6px;
     }
+    #top-indicator-toggle {
+    cursor: pointer;
+    font-size: 12px;
+    color: #444;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .toggle-control:hover {
+    background-color: #f2f2f2;
+  }
   
     .indicator-row {
       margin-bottom: 8px;
@@ -528,7 +540,8 @@
         <div id="static-card" class="card" style="display: flex; flex-direction: column; gap: 8px; padding: 12px;">
           <div class="map-header">
             <h3>Top Crime-Linked Indicators</h3>
-          </div>        
+            <span id="top-indicator-toggle" style="cursor: pointer; font-size: 12px; margin-left: auto;" title="Switch between average and scaled rates">Average</span>
+          </div>    
           <svg id="indicator-bar-chart" height="180"></svg>
         </div>
 
@@ -536,8 +549,8 @@
         <div style="display: flex; gap: 12px;">
           <!-- Left Box: Citywide Summary -->       
           <div id="yoy-dot-card" class="card" style="flex: 1; padding: 12px;">
-            <div class="map-header"><h3>Crime Rate by Category (2024 vs Avg)</h3></div>
-            <svg id="yoy-dot-svg" height="240"></svg>
+            <div class="map-header"><h3 id="yoy-dot-title">Crime Rate by Category (2024 vs Avg)</h3></div>
+            <svg id="yoy-dot-svg" height="280"></svg>
           </div>       
         </div>
 
@@ -603,7 +616,7 @@
   const mapContainer = document.getElementById("map");
   const width = mapContainer.clientWidth || window.innerWidth * 0.6;
   const height = mapContainer.clientHeight || window.innerHeight;
-
+  let useScaledTopIndicators = false; // <-- Variable to track if scaled indicators in static indicators bar chartare used
   let selectedYear = null; // <-- Variable to hold selected year
   const spikeWidth = 10;
 
@@ -650,6 +663,15 @@
       } else {
           console.warn(`No valid data for indicator scale: ${key}`)
       }
+    });
+
+    d3.select("#top-indicator-toggle").on("click", () => {
+      useScaledTopIndicators = !useScaledTopIndicators;
+
+      d3.select("#top-indicator-toggle")
+        .text(useScaledTopIndicators ? "Scaled" : "Average");
+
+      renderTopIndicatorBarChart(topFeatures);
     });
 
     // --- Process Crime Data ---
@@ -1045,18 +1067,26 @@
           const w = weights[d.CA];
           return isFinite(val) && isFinite(w) ? val * w : 0;
         });
+
+        // Match scaling logic used in renderIndicators
+        const scale = indicatorScales[ind.key];
+        const rawValue = ind.avg;
+        const scaledValue = (scale && !isNaN(rawValue)) ? scale(rawValue) : 0;
+        ind.scaledAvg = Math.max(0, Math.min(1, scaledValue));
       });
 
       const rankColorScale = d3.scaleOrdinal()
-        .domain([4,3, 2, 1, 0])
-        .range(["#c6dbef", "#a6bddb","#6baed6", "#fec44f", "#d95f0e"]);
-
+        .domain([4, 3, 2, 1, 0])
+        .range(["#c6dbef", "#a6bddb", "#6baed6", "#fec44f", "#d95f0e"]);
+      const maxBarWidth = innerWidth;
       const data = topIndicatorMeta.slice().sort((a, b) => b.avg - a.avg);
-      const x = d3.scaleLinear().domain([0, d3.max(data, d => d.avg)]).range([0, innerWidth]);
+      // const x = d3.scaleLinear()
+      //   .domain([0, useScaledTopIndicators ? 1 : d3.max(data, d => d.avg)])
+      //   .range([0, innerWidth]);
       const y = d3.scaleBand().domain(data.map(d => d.label)).range([0, innerHeight]).padding(0.2);
 
       const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
+      const maxAvg = d3.max(data, d => d.avg);
       g.selectAll("rect")
         .data(data)
         .enter()
@@ -1064,7 +1094,10 @@
         .attr("x", 0)
         .attr("y", d => y(d.label))
         .attr("height", y.bandwidth())
-        .attr("width", d => x(d.avg))
+        .attr("width", d => useScaledTopIndicators
+          ? d.scaledAvg * maxBarWidth
+          : d.avg / d3.max(data, d => d.avg) * maxBarWidth
+        )
         .attr("fill", (d, i) => rankColorScale(i))
         .attr("rx", 6) ;
 
@@ -1072,13 +1105,20 @@
         .data(data)
         .enter()
         .append("text")
-        .attr("x", d => x(d.avg) + 6)
+        .attr("x", d => {
+          const width = useScaledTopIndicators
+            ? d.scaledAvg * maxBarWidth
+            : d.avg / maxAvg * maxBarWidth;
+          return width + 6;
+        })
         .attr("y", d => y(d.label) + y.bandwidth() / 2)
         .attr("dy", "0.35em")
         .style("font-size", "11px")
         .text(d => {
-          const val = d.avg < 1 ? `${(d.avg * 100).toFixed(1)}%` : d.avg.toFixed(2);
-          return `${val} ${d.correlation > 0 ? "▲" : "▼"}`;
+          const val = useScaledTopIndicators
+            ? `${(d.scaledAvg ).toFixed(1)}`
+            : d.avg < 1 ? `${(d.avg * 100).toFixed(1)}%` : d.avg.toFixed(2);
+          return `${val} ${d.correlation > 0 ? "" : ""}`;
         });
 
       g.append("g")
@@ -1088,6 +1128,7 @@
     }
 
     function renderCrimeRateDotComparison(crimeGroupbyYear) {
+      const currentYear = selectedYear || 2024; // Use selected year or default to 2024
       const svg = d3.select("#yoy-dot-svg");
       svg.selectAll("*").remove();
 
@@ -1107,24 +1148,26 @@
       const nested = d3.groups(crimeGroupbyYear, d => d.Crime_Category, d => d.Year);
 
       const categoryStats = nested.map(([category, yearGroups]) => {
-        let sum = 0, count = 0, rate2024 = null;
+        let sum = 0, count = 0, rateSelected = null;
+
         yearGroups.forEach(([year, entries]) => {
           const total = d3.sum(entries, d => +d.Crime_Rate);
-          if (year === 2024) {
-            rate2024 = total;
-          } else {
+          if (year === currentYear) {
+            rateSelected = total;
+          } else  {
             sum += total;
             count++;
           }
         });
+
         return {
           category,
-          rate2024,
+          rateSelected,
           rateAvg: count > 0 ? sum / count : null
         };
       });
 
-      const filtered = categoryStats.filter(d => d.rate2024 != null && d.rateAvg != null);
+      const filtered = categoryStats.filter(d => d.rateSelected != null && d.rateAvg != null);
       const categories = filtered.map(d => d.category);
 
       const y = d3.scaleBand()
@@ -1132,7 +1175,7 @@
         .range([0, innerHeight])
         .padding(1.0);
 
-      const allRates = filtered.flatMap(d => [d.rateAvg, d.rate2024]).filter(r => r != null && isFinite(r));
+      const allRates = filtered.flatMap(d => [d.rateAvg, d.rateSelected]).filter(r => r != null && isFinite(r));
       const [minRate, maxRate] = d3.extent(allRates);
       const dataRange = (maxRate - minRate) || Math.max(1, maxRate);
       const padding = dataRange * 0.05; // 5% padding
@@ -1187,7 +1230,7 @@
         .data(filtered)
         .enter()
         .append("circle")
-        .attr("cx", d => x(d.rate2024))
+        .attr("cx", d => x(d.rateSelected))
         .attr("cy", d => y(d.category))
         .attr("r", 4)
         .attr("fill", "none")
@@ -1213,7 +1256,7 @@
         .enter()
         .append("line")
         .attr("x1", d => x(d.rateAvg))
-        .attr("x2", d => x(d.rate2024))
+        .attr("x2", d => x(d.rateSelected))
         .attr("y1", d => y(d.category))
         .attr("y2", d => y(d.category))
         .attr("stroke", "#bbb")
@@ -1226,8 +1269,8 @@
         .enter()
         .append("text")
         .attr("x", d => {
-          const min = Math.min(d.rateAvg, d.rate2024);
-          const max = Math.max(d.rateAvg, d.rate2024);
+          const min = Math.min(d.rateAvg, d.rateSelected);
+          const max = Math.max(d.rateAvg, d.rateSelected);
           return x(min + (max - min) / 2);
         })
         .attr("y", d => y(d.category) - 6)
@@ -1236,13 +1279,13 @@
         .style("font-weight", "bold")
         .style("fill", "#555")
         .text(d => {
-          const delta = d.rate2024 - d.rateAvg;
+          const delta = d.rateSelected - d.rateAvg;
           const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "";
           const formatted = `${delta > 0 ? "+" : ""}${delta.toFixed(1)} ${arrow}`;
           return formatted;
         })
         .style("fill", d => {
-          const delta = d.rate2024 - d.rateAvg;
+          const delta = d.rateSelected - d.rateAvg;
           return delta > 0 ? "#d95f0e" : delta < 0 ? "#6ec07d" : "#999";
         });
 
@@ -1264,7 +1307,7 @@
         .attr("x", 10)
         .attr("y", 3)
         .style("font-size", "11px")
-        .text("2024");
+        .text(selectedYear ? selectedYear.toString() : "2024");
 
       legend.append("circle")
         .attr("r", 4)
@@ -1278,7 +1321,12 @@
         .attr("x", 70)
         .attr("y", 3)
         .style("font-size", "11px")
-        .text("Avg (2015–2023)");
+        .text("Average");
+      const comparisonLabel = selectedYear
+        ? `Crime Rate by Category (${selectedYear} vs Avg of Others)`
+        : "Crime Rate by Category (2024 vs Avg)";
+
+      d3.select("#yoy-dot-title").text(comparisonLabel);
     }
 
     function renderExtremeCommunityBars(topFeatures) {
@@ -1564,13 +1612,13 @@
       }) / totalPopulation;
       
       renderTopIndicatorBarChart(topFeatures);
-      renderCrimeRateDotComparison(filteredCrimeGroupData);
+      renderCrimeRateDotComparison(crimeGroupbyYear);
       renderExtremeCommunityBars(topFeatures);
       const groupedBarChartData = computeGroupedBarChartData(topFeatures);
       renderGroupedSocioIndicators(groupedBarChartData);
 
       const yearlyCrime = d3.rollups(
-          crimeGroupbyYear.filter(d => selectedYear === null || +d.Year <= selectedYear),
+          crimeGroupbyYear,
           v => d3.sum(v, d => d.Crime_Count),
           d => d.Year
       ).map(([Year, Total]) => ({ Year: +Year, Total }))
