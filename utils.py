@@ -57,10 +57,10 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
     lambdas = np.logspace(c_start, c_stop, c_num)
     best_lambda = None
     best_score = float(-np.inf)
-    best_ypred = None  # Initialize best_ypred here to avoid UnboundLocalError
-    best_glasso_coefs = None  # Initialize best_glasso_coefs
-    best_selected_features = None  # Initialize best_selected_features
-    best_ridge_model = None  # Initialize best_ridge_model
+    best_ypred = None
+    best_glasso_coefs = None
+    best_selected_features = None
+    best_ridge_model = None
 
     np.random.seed(0)
     X_tr, X_ts, y_tr, y_ts = train_test_split(X_train_scaled, y_train, test_size=0.2, random_state=0)
@@ -128,15 +128,14 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
 
     coefs = np.array(coefs)
 
-    # Create figure with extra space for the legend
-    fig = plt.figure(figsize=(16, 8))  # Wider figure to accommodate legend
+
+    fig = plt.figure(figsize=(16, 8))
 
     # Filter features based on show_nonzero_only parameter
     if show_nonzero_only:
-        # Get indices of non-zero coefficients in the best model
         nonzero_indices = np.where(np.abs(best_glasso_coefs) > 1e-10)[0]
 
-        # Modified: Safely get the filtered labels and group plot
+        # Get the filtered labels and group plot
         filtered_group_plot = []
         filtered_labels = []
 
@@ -150,21 +149,18 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
                 # Add a fallback label
                 filtered_labels.append(f"Feature {i}")
 
-        # For plotting, we need to create a mask for the coefficient matrix
+        # Mask for the coefficient matrix
         mask = np.zeros_like(coefs, dtype=bool)
         for i, idx in enumerate(nonzero_indices):
             mask[:, idx] = True
-
-        # Filter coefficients using the mask
-        filtered_coefs = np.where(mask, coefs, np.nan)  # Set masked values to NaN so they don't plot
+        filtered_coefs = np.where(mask, coefs, np.nan)
     else:
-        # Use all features
         filtered_labels = labels
         filtered_group_plot = group_plot
         filtered_coefs = coefs
         nonzero_indices = range(coefs.shape[1])
 
-    # Calculate the number of features to display
+    # Number of features to display
     num_features = len(filtered_labels)
 
     # Determine legend columns based on number of features
@@ -177,13 +173,11 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
 
     # Create gridspec with two areas - one for plot, one for legend
     # Adjust width ratios based on number of legend columns
-    legend_width_ratio = 0.6 * legend_cols  # Proportional to number of columns
+    legend_width_ratio = 0.6 * legend_cols
     gs = plt.GridSpec(1, 2, width_ratios=[3, legend_width_ratio], figure=fig)
 
-    # Create main plot in the left gridspec cell
     ax = fig.add_subplot(gs[0])
 
-    # Create the colormap
     colors = plt.cm.get_cmap((cmap), len(set(group_plot))+1)
 
     # Plot the coefficient paths
@@ -288,11 +282,9 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
                               frameon=True,
                               title_fontsize=font_size+2)
 
-    # Adjust legend spacing
     legend._legend_box.sep = 5
     legend._legend_box.pad = 5
 
-    # Adjust figure layout
     plt.tight_layout()
 
     if save_plot:
@@ -301,7 +293,6 @@ def glasso_paths(X_train, y_train, X_test, groups_dict_original=None, group_name
         plt.savefig(f'output/{title_save}{nonzero_suffix}.pdf', bbox_inches='tight')
     plt.show()
 
-    # Return both the best GroupLasso coefficients and the Ridge model
     return best_ridge_model, best_glasso_coefs, best_lambda, best_ypred, groups_original, group_names_final, scores, best_selected_features
 
 
@@ -321,10 +312,8 @@ def coef_analysis(X, coefs, feature_names, group_names):
         'feature': 'first'  # Just to get a sample feature name for reference
     })
 
-    # Rename columns for clarity
     group_analysis.columns = ['mean_coef', 'sum_coef', 'abs_sum_coef', 'total_features', 'selected_features', 'mean_abs_coef', 'sample_feature']
 
-    # Add group names
     try:
         group_analysis['group_name'] = group_analysis.index.map(lambda x: group_names.get(x, f'Group {x}'))
     except:
@@ -356,10 +345,9 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     RANDOM_STATE = 42
     np.random.seed(RANDOM_STATE)
 
-    # Step 1: Initialize the XGBoost regressor with default parameters
+    # Initialize the XGBoost regressor with default parameters
     default_model = xgb.XGBRegressor(objective='reg:squarederror', random_state=RANDOM_STATE)
 
-    # Define K-fold cross-validation
     kf = KFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 
     # Evaluate baseline model with cross-validation
@@ -369,7 +357,6 @@ def xgboost_bayes(X, y, title='', save_plot=False):
         scoring='neg_mean_absolute_percentage_error'
     )
 
-    # Calculate mean and std of CV scores for baseline
     mean_cv_score_default = -np.mean(cv_scores_default)  # Negate to get positive MAPE
     std_cv_score_default = np.std(cv_scores_default)
 
@@ -377,7 +364,6 @@ def xgboost_bayes(X, y, title='', save_plot=False):
 
     # function to be optimized
     def xgb_evaluate(n_estimators, max_depth, learning_rate, subsample, colsample_bytree):
-        # Convert parameters to appropriate types
         params = {
             'n_estimators': int(round(n_estimators)),
             'max_depth': int(round(max_depth)),
@@ -388,10 +374,8 @@ def xgboost_bayes(X, y, title='', save_plot=False):
             'random_state': RANDOM_STATE
         }
 
-        # create model with current parameters
         model = xgb.XGBRegressor(**params)
 
-        # Use K-fold cross-validation
         cv_scores = cross_val_score(
             model, X, y,
             cv=kf,
@@ -409,7 +393,6 @@ def xgboost_bayes(X, y, title='', save_plot=False):
         'colsample_bytree': (0.6, 1.0)
     }
 
-    # Initialize Bayesian Optimization
     optimizer = BayesianOptimization(
         f=xgb_evaluate,
         pbounds=param_bounds,
@@ -417,7 +400,6 @@ def xgboost_bayes(X, y, title='', save_plot=False):
         verbose=1
     )
 
-    # Perform optimization
     print("Starting Bayesian optimization...")
     optimizer.maximize(init_points=5, n_iter=20)
 
@@ -447,29 +429,23 @@ def xgboost_bayes(X, y, title='', save_plot=False):
         scoring='neg_mean_absolute_percentage_error'
     )
 
-    # Calculate mean and stdv of CV scores for best model
     mean_cv_score_best = -np.mean(cv_scores_best)
     std_cv_score_best = np.std(cv_scores_best)
 
     print(f"\nBest Model CV MAPE: {mean_cv_score_best:.4f} ± {std_cv_score_best:.4f} (or {mean_cv_score_best * 100:.2f}% ± {std_cv_score_best * 100:.2f}%)")
 
-    # Print improvement over baseline
     improvement = (mean_cv_score_default - mean_cv_score_best) / mean_cv_score_default * 100
     print(f"Improvement over baseline: {improvement:.2f}%")
 
-    # Get predictions using cross-validation to avoid data leakage
     y_pred_cv = cross_val_predict(best_model, X, y, cv=kf)
 
-    # Fit the final model on the entire dataset
     best_model.fit(X, y)
 
-    # Calculate Pearson correlation for each feature with the target
     correlations = {}
     for col in X.columns:
         corr, _ = stats.pearsonr(X[col], y)
         correlations[col] = corr
 
-    # Print the top n feature importances with correlation sign
     n = 20
     feature_importance = best_model.feature_importances_
     feature_names = X.columns
@@ -488,11 +464,9 @@ def xgboost_bayes(X, y, title='', save_plot=False):
     print(f"\nTop {n} feature importances:")
     print(top_feat)
 
-    # Get residuals from cross-validation predictions
     residuals = y - y_pred_cv
     mape_by_sample = np.abs(residuals / y)
 
-    # Plot actual vs predicted values
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(12, 10))
@@ -539,90 +513,36 @@ def xgboost_bayes(X, y, title='', save_plot=False):
         plt.savefig(f'output/xgboost_model_diagnostics - {title}.pdf', bbox_inches='tight')
     plt.show()
 
-    # Additional analysis: Identify regions with highest error
-    high_error_threshold = np.percentile(mape_by_sample, 90)  # Top 10% of errors
-    high_error_indices = np.where(mape_by_sample > high_error_threshold)[0]
-
-    '''print(f"\nAnalysis of highest error predictions (above {high_error_threshold:.4f} MAPE):")
-    high_error_df = pd.DataFrame({
-        'Actual_Crime_Rate': y.iloc[high_error_indices],
-        'Predicted_Crime_Rate': y_pred_cv[high_error_indices],
-        'MAPE': mape_by_sample.iloc[high_error_indices]
-    })
-    print(high_error_df.describe())'''
-
     return best_model, top_feat
-
-
-#%%
-
-def calculate_vif(df, features_to_drop=None):
-    from statsmodels.stats.outliers_influence import variance_inflation_factor
-    import warnings; warnings.filterwarnings("ignore")
-    if features_to_drop:
-        df = df.drop(columns=features_to_drop)
-
-    if 'Crime Count' in df.columns:
-        features_df = df.drop(columns=['Crime Count'])
-    else:
-        features_df = df.copy()
-
-
-    features_df = features_df.copy()
-    features_df['const'] = 1
-
-    vif_data = pd.DataFrame({'Feature': features_df.columns, 'VIF': np.nan})
-
-    for i, column in enumerate(features_df.columns):
-        try:
-            vif_data.at[i, 'VIF'] = variance_inflation_factor(features_df.values, i)
-        except:
-            vif_data.at[i, 'VIF'] = np.nan
-
-    vif_data = vif_data[vif_data['Feature'] != 'const']
-    vif_data_sorted = vif_data.sort_values(by='VIF', ascending=True).reset_index(drop=True)
-
-    return vif_data_sorted, df
 
 
 #%%
 def crime_rate_month(merged_data, data_csv_clean):
     base_merged = merged_data[['CA', 'GEOG', '2000_POP', '2010_POP', '2020_POP', 'TOT_POP']].copy()
-    # Estimate population for each year based on 2010 and 2020 pop
     for year in range(2015, 2026):
         if year <= 2020:
-            # Interpolate between 2010 and 2020 for years 2015-2020
             weight_2020 = (year - 2010) / 10
             weight_2010 = 1 - weight_2020
             base_merged[f'{year}_POP'] = (weight_2010 * base_merged['2010_POP']) + (weight_2020 * base_merged['2020_POP'])
         else:
-            # Extrapolate for 2021-2025 based on 2010-2020 trend
-            # Calculate annual growth rate between 2010-2020
             annual_growth_rate = (base_merged['2020_POP'] / base_merged['2010_POP']) ** (1/10) - 1
-            # Apply compound growth for years beyond 2020
             years_after_2020 = year - 2020
             base_merged[f'{year}_POP'] = base_merged['2020_POP'] * (1 + annual_growth_rate) ** years_after_2020
 
-    # Create a detailed crime dataframe with crime rate by community area, crime type, year, and month
     detailed_crime = data_csv_clean.groupby(['Community Area', 'Primary Type', 'Year', 'Month'], observed=True)['ID'].count().reset_index()
     detailed_crime.columns = ['CA', 'Crime_Type', 'Year', 'Month', 'Crime_Count']
     detailed_crime['CA'] = detailed_crime['CA'].astype('int')
 
-    # Create a time identifier and format crime type for easier filtering
     detailed_crime['Time_ID'] = detailed_crime['Year'].astype(str) + '-' + detailed_crime['Month'].astype(str).str.zfill(2)
     detailed_crime['Crime_Type'] = detailed_crime['Crime_Type'].str.replace(' ', '_').str.replace('/', '_')
 
-    # Create a mapping of years to population columns
     year_pop_map = {year: f'{year}_POP' for year in range(2015, 2026)}
 
-    # Apply the correct population figure based on the year
     detailed_crime = pd.merge(detailed_crime, base_merged, on='CA', how='left')
     detailed_crime['Year_POP'] = detailed_crime.apply(lambda row: row[year_pop_map[row['Year']]], axis=1)
 
-    # Calculate rate using year-appropriate population
     detailed_crime['Crime_Rate'] = detailed_crime['Crime_Count'] / detailed_crime['Year_POP'] * 1000
 
-    # Remove pop columns
     pop_cols = [i for i in detailed_crime.columns.tolist() if 'POP' in i]
     detailed_crime.drop(columns=pop_cols, inplace=True)
 
@@ -701,22 +621,18 @@ def citywide_crime_rate_year(merged_data, data_csv_clean, crime_map):
 #%%
 def corr_pairs(df, features=None):
     if features is not None:
-        # correlation matrix
         corr_matrix = df[features].corr()
     else:
         corr_matrix = df.corr()
 
-    # mask for correlations >= 0.5 (in absolute value)
     high_corr_mask = (abs(corr_matrix) >= 0.5) & (abs(corr_matrix) < 1.0)  # Excluding self-correlations (which are always 1.0)
 
-    # pairs of highly correlated features
     high_corr_pairs = []
     for i in range(len(features)):
         for j in range(i+1, len(features)):  # only upper triangle to avoid duplicates
             if high_corr_mask.iloc[i, j]:
                 high_corr_pairs.append((features[i], features[j], corr_matrix.iloc[i, j]))
 
-    # Display results
     for feat1, feat2, corr_val in high_corr_pairs:
         print(f"{feat1} & {feat2}: {corr_val:.3f}")
     return high_corr_pairs
