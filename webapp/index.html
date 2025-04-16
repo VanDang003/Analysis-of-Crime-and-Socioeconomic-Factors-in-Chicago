@@ -953,6 +953,8 @@
         const communityName = matchedFeature ? matchedFeature.properties.community : "";
 
         drawRightChart(activeCA, communityName);
+      } else {
+        renderStaticChart(); // Re-render static layout!
       }
     });
 
@@ -1496,12 +1498,28 @@
       });
     }     
 
-    function renderStaticChart() {const svgStatic = d3.select("#static-chart");
+    function renderStaticChart() {
+      const svgStatic = d3.select("#static-chart");
+
+      const filteredCrimeGroupData = selectedYear !== null
+        ? crimeGroupbyYear.filter(d => +d.Year === selectedYear)
+        : crimeGroupbyYear;
+
+      const filteredTopFeatures = selectedYear !== null
+        ? topFeatures.map(d => {
+            const matchingRow = crimeGroup.find(row => row.CA === d.CA && +row.Year === selectedYear);
+            return {
+              ...d,
+              Crime_Rate: matchingRow ? +matchingRow.Crime_Rate : d.Crime_Rate,
+              Crime_Count: matchingRow ? +matchingRow.Crime_Count : 0
+            };
+          })
+        : topFeatures;
+
       svgStatic.selectAll("*").remove();
 
       const outerWidth = svgStatic.node().getBoundingClientRect().width;
       const outerHeight = svgStatic.node().getBoundingClientRect().height;
-
       const margin = { top: 10, right: 10, bottom: 25, left: 35 };
       const width = outerWidth - margin.left - margin.right;
       const height = outerHeight - margin.top - margin.bottom;
@@ -1513,53 +1531,55 @@
       const g = svgStatic.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-      // 1. Crime Counts By CA
       const crimeCountsByCA = d3.rollup(
-        crimeGroupbyYear,
+        filteredCrimeGroupData,
         v => d3.sum(v, d => d.Crime_Count),
         d => d.CA
       );
 
-      topFeatures.forEach(d => {
+      filteredTopFeatures.forEach(d => {
         if (!crimeCountsByCA.get(d.CA)) console.warn("Missing Crime Count for CA:", d.CA);
         if (!d.Crime_Rate || d.Crime_Rate <= 0) console.warn("Invalid Crime Rate for CA:", d.CA);
         if (!d.unemployment_rate || d.unemployment_rate <= 0) console.warn("Invalid Unemployment Rate for CA:", d.CA);
         if (!d.rent_to_income || d.rent_to_income <= 0) console.warn("Invalid Rent Income Ratio for CA:", d.CA);
       });
 
-      // 2. Calculate Total Population Proxy
-      const totalPopulation = d3.sum(topFeatures, d => {
+      const totalPopulation = d3.sum(filteredTopFeatures, d => {
         const crimeCount = crimeCountsByCA.get(d.CA) || 1;
         return (d.Crime_Rate > 0) ? crimeCount / d.Crime_Rate : 0;
       });
 
-      // 3. Weighted Calculations
-      const weightedUnemployment = d3.sum(topFeatures, d => {
+      const weightedUnemployment = d3.sum(filteredTopFeatures, d => {
         const crimeCount = crimeCountsByCA.get(d.CA) || 1;
         return (d.Crime_Rate > 0 && d.unemployment_rate > 0)
           ? d.unemployment_rate * (crimeCount / d.Crime_Rate)
           : 0;
       }) / totalPopulation;
 
-      const weightedRentIncome = d3.sum(topFeatures, d => {
+      const weightedRentIncome = d3.sum(filteredTopFeatures, d => {
         const crimeCount = crimeCountsByCA.get(d.CA) || 1;
         return (d.Crime_Rate > 0 && d.rent_to_income > 0)
           ? d.rent_to_income * (crimeCount / d.Crime_Rate)
           : 0;
       }) / totalPopulation;
 
-      renderTopIndicatorBarChart(topFeatures);
-      renderCrimeRateDotComparison(crimeGroupbyYear);
-      renderExtremeCommunityBars(topFeatures);
-      const groupedBarChartData = computeGroupedBarChartData(topFeatures);
+      renderTopIndicatorBarChart(filteredTopFeatures);
+      renderCrimeRateDotComparison(filteredCrimeGroupData);
+      renderExtremeCommunityBars(filteredTopFeatures);
+      const groupedBarChartData = computeGroupedBarChartData(filteredTopFeatures);
       renderGroupedSocioIndicators(groupedBarChartData);
 
-      // Line Chart Data
-      const yearlyCrime = d3.rollups(
-        crimeGroupbyYear,
-        v => d3.sum(v, d => d.Crime_Count),
-        d => d.Year
-      ).map(([Year, Total]) => ({ Year: +Year, Total }));
+      const yearlyCrime = selectedYear !== null
+        ? d3.rollups(
+            filteredCrimeGroupData,
+            v => d3.sum(v, d => d.Crime_Count),
+            d => d.Year
+          ).map(([Year, Total]) => ({ Year: +Year, Total }))
+        : d3.rollups(
+            crimeGroupbyYear,
+            v => d3.sum(v, d => d.Crime_Count),
+            d => d.Year
+          ).map(([Year, Total]) => ({ Year: +Year, Total }));
 
       const x = d3.scaleLinear()
         .domain(d3.extent(yearlyCrime, d => d.Year))
@@ -1580,53 +1600,32 @@
           .y(d => y(d.Total))
         );
 
-      g.append("g")
-        .call(d3.axisLeft(y).ticks(4).tickSizeOuter(0));
-
+      g.append("g").call(d3.axisLeft(y).ticks(4).tickSizeOuter(0));
       g.append("g")
         .attr("transform", `translate(0,${height})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")).tickSizeOuter(0));
 
-      // Ranking Box Generator
       function buildRankSection(title, items, valueFormatter) {
         return `
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <!-- 1st Place Grand Card -->
-            <div style="
-                background: #fafafa;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                padding: 12px;
-                text-align: center;
-            ">
+            <div style="background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center;">
               <div style="font-size: 24px; font-weight: bold; color: rgb(217, 95, 14);">${items[0][0]}</div>
               <div style="font-size: 13px; color: #888;">${valueFormatter(items[0][1])}</div>
             </div>
-
-            <!-- 2nd & 3rd Place Small Cards -->
             <div style="display: flex; gap: 6px;">
-              ${items.slice(1).map(([label, value], idx) => `
-                <div style="
-                    flex: 1;
-                    background: #fafafa;
-                    border: 1px solid #ddd;
-                    border-radius: 6px;
-                    padding: 8px;
-                    text-align: center;
-                ">
+              ${items.slice(1).map(([label, value]) => `
+                <div style="flex: 1; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 8px; text-align: center;">
                   <div style="font-size: 16px; font-weight: bold; color: rgb(217, 95, 14);">${label}</div>
                   <div style="font-size: 10px; color: #aaa;">${valueFormatter(value)}</div>
                 </div>
               `).join('')}
             </div>
-
           </div>
         `;
       }
 
-      // Top Crime Categories
       const categoryTotals = d3.rollups(
-        crimeGroupbyYear,
+        filteredCrimeGroupData,
         v => d3.sum(v, d => d.Crime_Count),
         d => d.Crime_Category
       ).sort((a, b) => d3.descending(a[1], b[1])).slice(0, 3);
@@ -1635,8 +1634,7 @@
         buildRankSection("Top Crime Category", categoryTotals, d => `${d.toLocaleString()} Reports`)
       );
 
-      // Safest Areas
-      const safestAreas = topFeatures
+      const safestAreas = filteredTopFeatures
         .slice()
         .sort((a, b) => a.Crime_Rate - b.Crime_Rate)
         .map(d => [d.GEOG, d.Crime_Rate])
@@ -1646,8 +1644,7 @@
         buildRankSection("Safest Area", safestAreas, d => `Crime Rate: ${d.toFixed(2)}`)
       );
 
-      // Most Crime-Ridden Areas
-      const highestAreas = topFeatures
+      const highestAreas = filteredTopFeatures
         .slice()
         .sort((a, b) => b.Crime_Rate - a.Crime_Rate)
         .map(d => [d.GEOG, d.Crime_Rate])
