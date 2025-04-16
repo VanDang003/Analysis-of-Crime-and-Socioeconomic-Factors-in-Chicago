@@ -1040,6 +1040,7 @@
         .attr("preserveAspectRatio", "xMidYMid meet");
       const margin = { top: 10, right: 60, bottom: 20, left: 140 };
       const innerWidth = width - margin.left - margin.right;
+      const maxBarWidth = innerWidth;
       const innerHeight = height - margin.top - margin.bottom;
 
       // Estimate population weights
@@ -1078,7 +1079,7 @@
       const rankColorScale = d3.scaleOrdinal()
         .domain([4, 3, 2, 1, 0])
         .range(["#c6dbef", "#a6bddb", "#6baed6", "#fec44f", "#d95f0e"]);
-      const maxBarWidth = innerWidth;
+      // const maxBarWidth = innerWidth;
       const data = topIndicatorMeta.slice().sort((a, b) => b.avg - a.avg);
       // const x = d3.scaleLinear()
       //   .domain([0, useScaledTopIndicators ? 1 : d3.max(data, d => d.avg)])
@@ -1087,19 +1088,32 @@
 
       const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
       const maxAvg = d3.max(data, d => d.avg);
-      g.selectAll("rect")
+      g.selectAll(".bg-bar")
         .data(data)
         .enter()
         .append("rect")
+        .attr("class", "bg-bar")
+        .attr("x", 0)
+        .attr("y", d => y(d.label))
+        .attr("width", maxBarWidth)
+        .attr("height", y.bandwidth())
+        .attr("rx", 6)
+        .attr("fill", "#f0f0f0");
+
+      g.selectAll(".bar-fill")
+        .data(data)
+        .enter()
+        .append("rect")
+        .attr("class", "bar-fill")
         .attr("x", 0)
         .attr("y", d => y(d.label))
         .attr("height", y.bandwidth())
         .attr("width", d => useScaledTopIndicators
           ? d.scaledAvg * maxBarWidth
-          : d.avg / d3.max(data, d => d.avg) * maxBarWidth
+          : d.avg / maxAvg * maxBarWidth
         )
         .attr("fill", (d, i) => rankColorScale(i))
-        .attr("rx", 6) ;
+        .attr("rx", 6);
 
       g.selectAll(".label")
         .data(data)
