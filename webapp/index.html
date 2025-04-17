@@ -6,7 +6,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
     <style>
-      /* === Base Layout (FROM USER PROVIDED CODE) === */
+      /* === Base Layout === */
       body {
         margin: 0;
         font-family: sans-serif;
@@ -41,7 +41,7 @@
         background-color: #c0500b;
       }
 
-      /* === Shared Card Styles (FROM USER PROVIDED CODE) === */
+      /* === Shared Card Styles === */
       .card {
         background: white;
         border-radius: 6px;
@@ -64,7 +64,7 @@
         color: #333;
       }
 
-      /* === Map Panel (FROM USER PROVIDED CODE) === */
+      /* === Map Panel === */
       #map-panel {
         flex: 5;
         display: flex;
@@ -129,7 +129,7 @@
         max-width: 75ch;
       }
 
-      /* Card Header Specific Style (FROM USER PROVIDED CODE) */
+      /* Card Header Specific Style */
       .card > .map-header {
         padding: 0;
         background: none;
@@ -723,20 +723,20 @@
       const height = mapContainer.clientHeight || window.innerHeight;
 
       // === Global State Variables ===
-      let useScaledTopIndicators = false; // FROM PROVIDED CODE
-      let selectedYear = null; // FROM PROVIDED CODE
-      const spikeWidth = 10; // FROM PROVIDED CODE
+      let useScaledTopIndicators = false;
+      let selectedYear = null;
+      const spikeWidth = 10;
 
-      let currentScale = 1; // FROM PROVIDED CODE
-      let currentTranslate = [0, 0]; // FROM PROVIDED CODE
-      let crimeByCategory = []; // FROM PROVIDED CODE
-      let indicatorScales = {}; // <<<### ESSENTIAL FIX ### (Was [])
-      let topFeatures = []; // FROM PROVIDED CODE
-      let originalIndicatorOrder = []; // FROM PROVIDED CODE
+      let currentScale = 1;
+      let currentTranslate = [0, 0];
+      let crimeByCategory = [];
+      let indicatorScales = {}; // 
+      let topFeatures = [];
+      let originalIndicatorOrder = [];
       let currentSortMode = "importance"; // <<<### SHARED SORT STATE ###
-      let activeCA = null; // FROM PROVIDED CODE
+      let activeCA = null;
       // REMOVED: let populationByCA = new Map();
-      let populationByCA_2020 = new Map(); // <<<### ADDED for fixed 2020 weights ###
+      let populationByCA_2020 = new Map();
 
       let globalCrimeGroupData = [];
       let globalFeaturesData = [];
@@ -745,11 +745,11 @@
       // === Data Loading and Initialization ===
       Promise.all([
         d3.json("data/chicago.geojson"),
-        d3.csv("data/crime_rate_by_crime_type.csv", d3.autoType), // Original
-        d3.csv("data/crime_rate_by_crime_group.csv", d3.autoType), // Original
-        d3.csv("data/top_features_per_CA_sorted.csv", d3.autoType), // Original
-        d3.csv("data/crime_rate_by_crime_group_YEAR.csv", d3.autoType), // <<< Needs Est_Population column
-        d3.csv("data/CA areas.csv", d3.autoType), // Original
+        d3.csv("data/crime_rate_by_crime_type.csv", d3.autoType),
+        d3.csv("data/crime_rate_by_crime_group.csv", d3.autoType),
+        d3.csv("data/top_features_per_CA_sorted.csv", d3.autoType),
+        d3.csv("data/crime_rate_by_crime_group_YEAR.csv", d3.autoType), 
+        d3.csv("data/CA areas.csv", d3.autoType),
         d3.csv("data/Community_Data_Snapshots_2024_3269398054420983008.csv", d3.autoType)
 
       ]).then(
@@ -1066,9 +1066,9 @@
                 tooltip.style("opacity", 1);
               }
             })
-            .on("mousemove", handleTooltipMove) // Original call
-            .on("mouseout", () => tooltip.style("opacity", 0)) // Original call
-            .on("click", handleCommunityClick); // Original call (uses FIXED zoom version below)
+            .on("mousemove", handleTooltipMove)
+            .on("mouseout", () => tooltip.style("opacity", 0))
+            .on("click", handleCommunityClick);
 
           // --- Original Tooltip Move Handler ---
           function handleTooltipMove(event) {
@@ -2551,7 +2551,6 @@
           }
         }
       ).catch((error) => {
-        // Original Error Handling
         console.error("Error loading data:", error);
         d3.select("#dashboard").html(
           `<div style="padding: 20px; color: red; font-weight: bold;">Failed to load required data. Check console and data files. Error: ${error.message}</div>`
