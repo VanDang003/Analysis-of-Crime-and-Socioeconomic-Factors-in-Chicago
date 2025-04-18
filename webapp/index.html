@@ -1151,6 +1151,15 @@
             updateMapColoring(); // Update map based on selected year's crime rate averages
 
             renderExtremeCommunityBars(globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+            const initialGroupedData = computeGroupedBarChartData(topFeatures);
+          
+            // get the list of extreme CAs
+            const extremeCAs = getExtremeCAs(selectedYear,globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+
+            // Use that list in both functions
+            const groupedData = computeGroupedBarChartData(globalFeaturesData, extremeCAs);
+            renderGroupedSocioIndicators(groupedData, extremeCAs);
+            console.log(groupedData);
 
             if (activeCA !== null) {
               // Dynamic view active, redraw its charts
@@ -1182,12 +1191,84 @@
           renderTopIndicatorBarChart(topFeatures);
           renderExtremeCommunityBars(globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
           const initialGroupedData = computeGroupedBarChartData(topFeatures);
-          renderGroupedSocioIndicators(initialGroupedData);
+          
+          // get the list of extreme CAs
+          const extremeCAs = getExtremeCAs(selectedYear,globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+
+          // Use that list in both functions
+          const groupedData = computeGroupedBarChartData(globalFeaturesData, extremeCAs);
+          renderGroupedSocioIndicators(groupedData, extremeCAs);
+          console.log(groupedData);
+          // renderGroupedSocioIndicators(initialGroupedData);
           renderStaticOverallTrend(crimeGroupbyYear);
           
 
           // Initial render of the potentially dynamic parts of the static panel
           renderStaticChart(); // This now only renders the YOY dot plot initially
+
+          function getExtremeCAs(selectedYear, crimeGroupData, populationMap, featuresData) {
+            const caToGeogMap = new Map();
+            featuresData.forEach(d => {
+              if (d.CA != null && d.GEOG != null) {
+                caToGeogMap.set(+d.CA, d.GEOG);
+              }
+            });
+
+            if (selectedYear !== null) {
+              const yearData = crimeGroupData.filter(d => d.Year === selectedYear);
+
+              const yearlyCountsPerCA = d3.rollup(
+                yearData,
+                v => d3.sum(v, d => +d.Crime_Count || 0),
+                d => +d.CA
+              );
+
+              const calculatedRates = [];
+
+              yearlyCountsPerCA.forEach((count, caId) => {
+                const population = populationMap.get(caId);
+                let approxRate = null;
+
+                if (population != null && population > 0 && count != null) {
+                  approxRate = (count / population) * 1000;
+                }
+
+                const geogName = caToGeogMap.get(caId) || `CA ${caId}`;
+
+                if (approxRate !== null && isFinite(approxRate)) {
+                  calculatedRates.push({
+                    CA: caId,
+                    GEOG: geogName,
+                    Approx_Rate: approxRate
+                  });
+                }
+              });
+
+              calculatedRates.sort((a, b) => d3.ascending(a.Approx_Rate, b.Approx_Rate));
+
+              return calculatedRates.length >= 4
+                ? [...calculatedRates.slice(0, 2), ...calculatedRates.slice(-2)]
+                : calculatedRates;
+            } else {
+              const staticSorted = featuresData
+                .slice()
+                .filter(d => d.Crime_Rate != null && isFinite(d.Crime_Rate) && d.GEOG != null)
+                .sort((a, b) => d3.ascending(+a.Crime_Rate, +b.Crime_Rate));
+
+              return staticSorted.length >= 4
+                ? [...staticSorted.slice(0, 2), ...staticSorted.slice(-2)].map(d => ({
+                  CA: +d.CA,
+                  GEOG: d.GEOG,
+                  Approx_Rate: +d.Crime_Rate
+                }))
+                : staticSorted.map(d => ({
+                  CA: +d.CA,
+                  GEOG: d.GEOG,
+                  Approx_Rate: +d.Crime_Rate
+                }));
+            }
+          }
+
 
           // === CHART RENDERING FUNCTIONS ===
 
@@ -1754,7 +1835,7 @@
             const legend = svg
               .append("g")
               .attr("class", "legend")
-              .attr("transform", `translate(${width / 2 - 60}, ${height - 10})`);
+              .attr("transform", `translate(${width - margin.right - 100}, ${margin.top -20})`);
             legend
               .append("circle")
               .attr("r", 4)
@@ -1957,26 +2038,29 @@
               .slice(0, 4)
               .map((d) => d.indicator);
           }
-          function computeGroupedBarChartData(featuresData) {
-            const sorted = featuresData
-              .slice()
-              .filter((d) => d.Crime_Rate != null && isFinite(d.Crime_Rate))
-              .sort((a, b) => a.Crime_Rate - b.Crime_Rate);
-            if (sorted.length < 4) return [];
-            const selectedAreas = [...sorted.slice(0, 2), ...sorted.slice(-2)];
+
+          function computeGroupedBarChartData(featuresData, selectedCAs) {
             const topIndicators = getTop4Indicators(featuresData);
-            if (topIndicators.length === 0) return [];
-            return selectedAreas.flatMap((area) =>
-              topIndicators.map((indicator) => ({
-                GEOG: area.GEOG,
+            if (!topIndicators || topIndicators.length === 0 || !selectedCAs || selectedCAs.length === 0) return [];
+
+            //Build a lookup map from CA to full feature row
+            const featureMap = new Map(featuresData.map(d => [+d.CA, d]));
+
+            //Lookup full rows by CA from selected areas
+            return selectedCAs.flatMap(({ CA }) => {
+              const fullRow = featureMap.get(+CA);
+              if (!fullRow) return [];
+
+              return topIndicators.map(indicator => ({
+                GEOG: fullRow.GEOG,
                 Indicator: indicator.replace(/_/g, " "),
-                Value: +area[indicator],
-              }))
-            );
+                Value: +fullRow[indicator]
+              }));
+            });
           }
 
           // --- Static Grouped Bar Chart Rendering ---
-          function renderGroupedSocioIndicators(data) {
+          function renderGroupedSocioIndicators(data,selectedCAs) {
             const svg = d3.select(
               "#indicator-grouped-bar"
             );
@@ -2016,13 +2100,13 @@
               .domain([0, d3.max(data, (d) => +d.Value)])
               .range([innerHeight, 0])
               .nice();
-            const colorMap = {
-              "Edison Park": "#c6dbef",
-              "Forest Glen": "#a6bddb",
-              "West Garfield Park": "#fec44f",
-              "Fuller Park": "#d95f0e",
-            };
-            const color = (d) => colorMap[d.GEOG] || "#ccc";
+            const palette = ["#c6dbef", "#a6bddb", "#fec44f", "#d95f0e"];
+            const colorMap = new Map();
+
+            selectedCAs.forEach((ca, i) => {
+              colorMap.set(ca.GEOG, palette[i % palette.length]);
+            });
+            const color = (d) => colorMap.get(d.GEOG) || "#ccc";
             const g = svg
               .append("g")
               .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -2051,20 +2135,20 @@
               .attr("transform", `translate(${margin.left}, 10)`);
             const legendRowHeight = 16;
             const legendColWidth = 140;
-            const legendAreas = Object.keys(colorMap);
+            const legendAreas = selectedCAs.map(d => d.GEOG);
             legendAreas.forEach((area, i) => {
               const col = i % 2;
               const row = Math.floor(i / 2);
               const group = legend
                 .append("g")
                 .attr("transform", `translate(${col * legendColWidth}, ${row * legendRowHeight})`);
-              group
-                .append("rect")
+
+              group.append("rect")
                 .attr("width", 10)
                 .attr("height", 10)
-                .attr("fill", colorMap[area]);
-              group
-                .append("text")
+                .attr("fill", colorMap.get(area) || "#ccc");
+
+              group.append("text")
                 .attr("x", 14)
                 .attr("y", 9)
                 .style("font-size", "11px")
