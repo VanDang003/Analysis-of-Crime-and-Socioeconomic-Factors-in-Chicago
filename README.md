@@ -46,7 +46,7 @@ The ultimate aim is to provide transparent insights into the complex interplay b
 
 ## Getting Started
 
-1.  **Clone the repository:**
+1.  **Clone the repository (or use submitted source code) :**
     ```bash
     git clone https://github.gatech.edu/amoughnieh3/CSE-6242-SP25-team077.git
     cd CSE-6242-SP25-team077
