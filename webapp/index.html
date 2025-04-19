@@ -912,65 +912,73 @@
 
           // Update Map Coloring Function 
           function updateMapColoring() {
-            let fCrimes = crimes;
-            let activeColorScale; 
-            let ratesForCurrentSelection = avgCrimeByCA;
+            let activeColorScale;
+            let ratesForCurrentSelection;
 
             if (selectedYear !== null) {
-              fCrimes = crimes.filter((d) => d.Year === selectedYear);
-            
-            const curAvg = d3.rollup(
-              fCrimes,
-              (v) => d3.mean(v, (d) => d.Crime_Rate),
-              (d) => d.CA
-            );
+                const yearlyCrimeGroupData = globalCrimeGroupData.filter(d => d.Year === selectedYear);
 
-            ratesForCurrentSelection = curAvg;
+                const yearlyCountsPerCA = d3.rollup(
+                    yearlyCrimeGroupData,
+                    v => d3.sum(v, d => +d.Crime_Count || 0),
+                    d => +d.CA
+                );
 
-            const currentYearRates = Array.from(curAvg.values()).filter(
-              (d) => d != null && !isNaN(d) && d > 0 
-            );
+                ratesForCurrentSelection = new Map();
+                yearlyCountsPerCA.forEach((count, caId) => {
+                    const population = populationByCA_2020.get(caId);
+                    let approxRate = null;
+                    if (population != null && population > 0 && count != null && count >= 0) {
+                        approxRate = (count / population) * 1000;
+                    }
+                    ratesForCurrentSelection.set(caId, approxRate);
+                });
 
-            const [minRateThisYear, maxRateThisYear] = d3.extent(currentYearRates);
+                const currentYearRates = Array.from(ratesForCurrentSelection.values()).filter(
+                    (d) => d != null && !isNaN(d) && d > 0
+                );
+                const [minRateThisYear, maxRateThisYear] = d3.extent(currentYearRates);
 
-            const domainStartThisYear = minRateThisYear === undefined ? 0.01 : minRateThisYear;
-            const domainEndThisYear =
-              maxRateThisYear === undefined || maxRateThisYear <= domainStartThisYear
-                ? domainStartThisYear + 1
-                : maxRateThisYear;
+                const domainStartThisYear = minRateThisYear === undefined ? 0.01 : minRateThisYear;
+                const domainEndThisYear =
+                    maxRateThisYear === undefined || maxRateThisYear <= domainStartThisYear
+                        ? domainStartThisYear + 1
+                        : maxRateThisYear;
 
-            console.log(`Map Color Scale Domain for ${selectedYear}: ${domainStartThisYear.toFixed(2)} - ${domainEndThisYear.toFixed(2)}`);
+                console.log(`Map Color Scale Domain (Count/Pop*1k) for ${selectedYear}: ${domainStartThisYear.toFixed(2)} - ${domainEndThisYear.toFixed(2)}`);
 
-            const valueToInterpolatorInputScaleThisYear = d3
-              .scalePow()
-              .exponent(1)
-              .domain([domainStartThisYear, domainEndThisYear])
-              .range([0, 1])
-              .clamp(true);
+                const valueToInterpolatorInputScaleThisYear = d3
+                    .scalePow()
+                    .exponent(1)
+                    .domain([domainStartThisYear, domainEndThisYear])
+                    .range([0, 1])
+                    .clamp(true);
 
-            const colorScaleThisYear = (rate) => {
-              if (rate == null || isNaN(rate)) {
-                return "#eee"; 
-              }
-              const effectiveRate = Math.max(rate, domainStartThisYear);
-              const interpolatorInput = valueToInterpolatorInputScaleThisYear(effectiveRate);
-              return d3.interpolateBlues(interpolatorInput);
-            };
-            activeColorScale = colorScaleThisYear;
-          } else {
-            console.log(`Map Color Scale Domain for All Years: Using pre-calculated global scale`);
-            activeColorScale = avgRateColorScale; 
-            ratesForCurrentSelection = avgCrimeByCA; 
-          }
+                const colorScaleThisYear = (rate) => {
+                    if (rate == null || isNaN(rate) || rate <= 0) {
+                        return "#eee";
+                    }
+                    const effectiveRate = Math.max(rate, domainStartThisYear);
+                    const interpolatorInput = valueToInterpolatorInputScaleThisYear(effectiveRate);
+                    return d3.interpolateBlues(interpolatorInput);
+                };
+
+                activeColorScale = colorScaleThisYear;
+
+            } else {
+                console.log(`Map Color Scale Domain for All Years: Using original pre-calculated scale`);
+                activeColorScale = avgRateColorScale;
+                ratesForCurrentSelection = avgCrimeByCA;
+            }
 
             svg
-              .selectAll("path.community")
-              .style("fill", (d) => {
-                const id = +d.properties.area_num_1;
-                const rate = ratesForCurrentSelection.get(id);
-                return activeColorScale(rate);
-              });
-          }
+                .selectAll("path.community")
+                .style("fill", (d) => {
+                    const id = +d.properties.area_num_1;
+                    const rate = ratesForCurrentSelection.get(id);
+                    return activeColorScale(rate);
+                });
+        }
 
           // Map Setup 
           const projection = d3.geoMercator().fitSize([width, height], geojson);
