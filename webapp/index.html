@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Chicago Crime Map with Line and Doughnut Charts</title>
+    <title>Chicago Crime Map with Socio-Economic Indicators</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
     <style>
@@ -913,22 +913,62 @@
           // Update Map Coloring Function 
           function updateMapColoring() {
             let fCrimes = crimes;
+            let activeColorScale; 
+            let ratesForCurrentSelection = avgCrimeByCA;
+
             if (selectedYear !== null) {
               fCrimes = crimes.filter((d) => d.Year === selectedYear);
-            }
+            
             const curAvg = d3.rollup(
               fCrimes,
               (v) => d3.mean(v, (d) => d.Crime_Rate),
               (d) => d.CA
             );
+
+            ratesForCurrentSelection = curAvg;
+
+            const currentYearRates = Array.from(curAvg.values()).filter(
+              (d) => d != null && !isNaN(d) && d > 0 
+            );
+
+            const [minRateThisYear, maxRateThisYear] = d3.extent(currentYearRates);
+
+            const domainStartThisYear = minRateThisYear === undefined ? 0.01 : minRateThisYear;
+            const domainEndThisYear =
+              maxRateThisYear === undefined || maxRateThisYear <= domainStartThisYear
+                ? domainStartThisYear + 1
+                : maxRateThisYear;
+
+            console.log(`Map Color Scale Domain for ${selectedYear}: ${domainStartThisYear.toFixed(2)} - ${domainEndThisYear.toFixed(2)}`);
+
+            const valueToInterpolatorInputScaleThisYear = d3
+              .scalePow()
+              .exponent(1)
+              .domain([domainStartThisYear, domainEndThisYear])
+              .range([0, 1])
+              .clamp(true);
+
+            const colorScaleThisYear = (rate) => {
+              if (rate == null || isNaN(rate)) {
+                return "#eee"; 
+              }
+              const effectiveRate = Math.max(rate, domainStartThisYear);
+              const interpolatorInput = valueToInterpolatorInputScaleThisYear(effectiveRate);
+              return d3.interpolateBlues(interpolatorInput);
+            };
+            activeColorScale = colorScaleThisYear;
+          } else {
+            console.log(`Map Color Scale Domain for All Years: Using pre-calculated global scale`);
+            activeColorScale = avgRateColorScale; 
+            ratesForCurrentSelection = avgCrimeByCA; 
+          }
+
             svg
               .selectAll("path.community")
-              .transition()
-              .duration(750)
               .style("fill", (d) => {
                 const id = +d.properties.area_num_1;
-                const rate = curAvg.get(id);
-                return rate != null && !isNaN(rate) ? avgRateColorScale(rate) : "#eee";
+                const rate = ratesForCurrentSelection.get(id);
+                return activeColorScale(rate);
               });
           }
 
