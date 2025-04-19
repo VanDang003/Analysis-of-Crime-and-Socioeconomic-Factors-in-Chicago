@@ -1193,36 +1193,38 @@
           });
 
           
-          // --- Year Select Handler (Removed populationByCA recalculation) ---
+          // --- Year Select Handler ---
           d3.select("#year-select").on("change", function () {
-            selectedYear = this.value === "all" ? null : +this.value;
-            updateMapColoring(); // Update map based on selected year's crime rate averages
+                    selectedYear = this.value === "all" ? null : +this.value;
+                    updateMapColoring(); 
+                    if (activeCA === null) {
 
-            renderExtremeCommunityBars(globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
-            const initialGroupedData = computeGroupedBarChartData(topFeatures);
-          
-            // get the list of extreme CAs
-            const extremeCAs = getExtremeCAs(selectedYear,globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+                        // 1. Calculate data needed for these specific static charts
+                        const extremeCAs = getExtremeCAs(selectedYear, globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+                        const groupedData = computeGroupedBarChartData(globalFeaturesData, extremeCAs);
 
-            // Use that list in both functions
-            const groupedData = computeGroupedBarChartData(globalFeaturesData, extremeCAs);
-            renderGroupedSocioIndicators(groupedData, extremeCAs);
-            console.log(groupedData);
+                        // 2. Render the static charts that change with year
+                        renderExtremeCommunityBars(globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+                        renderGroupedSocioIndicators(groupedData, extremeCAs);
+                        renderStaticChart(); 
+                        console.log("Updated static charts for year:", selectedYear);
 
-            if (activeCA !== null) {
-              // Dynamic view active, redraw its charts
-              const matchedFeature = geojson.features.find(
-                (d) => +d.properties.area_num_1 === activeCA
-              );
-              const communityName = matchedFeature
-                ? matchedFeature.properties.community
-                : `CA ${activeCA}`;
-              drawRightChart(activeCA, communityName);
-            } else {
-              // Static view active, redraw ONLY the charts that depend on the year
-              renderStaticChart(); // Calls wrapper which now only renders dynamic parts
-            }
-          });
+                    } else {
+                        // Only redraw the charts in the dynamic panel
+
+                        const matchedFeature = geojson.features.find(
+                            (d) => +d.properties.area_num_1 === activeCA
+                        );
+                        const communityName = matchedFeature
+                            ? matchedFeature.properties.community
+                            : `CA ${activeCA}`;
+                        // drawRightChart redraws Doughnut and Indicators panel for the active CA/Year
+                        drawRightChart(activeCA, communityName);
+
+                        console.log("Updated dynamic charts for year:", selectedYear, "CA:", activeCA);
+
+                    }
+                });
           
 
           // --- SVG Click Listener ---
@@ -2347,8 +2349,8 @@
                   // 1. Get static CAs for comparison charts
                   const staticCAs = getDynamicExtremeCAs(null, globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
                   // 2. Render comparison charts
-                  renderExtremeCommunityBars(staticCAs);
-                  const staticGroupedData = computeGroupedBarChartData(staticCAs, globalFeaturesData);
+                  renderExtremeCommunityBars(globalCrimeGroupData, populationByCA_2020, globalFeaturesData);
+                  const staticGroupedData = computeGroupedBarChartData(globalFeaturesData, staticCAs);
                   renderGroupedSocioIndicators(staticGroupedData, staticCAs);
                   // 3. Render YOY dot plot (defaults to 2024)
                   renderStaticChart(); // Calls renderCrimeRateDotComparison
@@ -2370,6 +2372,8 @@
           // --- Reset View ---
           function resetToStaticView() {
             activeCA = null;
+            selectedYear = null; // Reset the year state variable
+            d3.select("#year-select").property("value", "all");
             svg
               .selectAll("path.community")
               .classed("selected", false)
