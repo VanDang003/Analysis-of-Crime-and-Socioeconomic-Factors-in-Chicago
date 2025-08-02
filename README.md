@@ -13,6 +13,12 @@ The analysis involves:
 
 The ultimate aim is to provide transparent insights into the complex interplay between socioeconomic conditions and crime, supporting data-driven policy and intervention strategies.
 
+<p align="center">
+  <img src="crime_cover_pic.png" alt="Chicago Streets Police Cordon" title="Chicago Streets" style="text-align:center" width="400px">
+  <br>
+</p>
+
+
 ## Requirements
 
 * This project uses Python 3.7 or higher. It is recommended to use a virtual environment:
