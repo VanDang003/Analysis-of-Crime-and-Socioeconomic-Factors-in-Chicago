@@ -13,7 +13,7 @@ The analysis involves:
 
 The ultimate aim is to provide transparent insights into the complex interplay between socioeconomic conditions and crime, supporting data-driven policy and intervention strategies.
 
-An overview of the project can be found in this poster [here](Poster - Socioeconomic Factors and Crime in Chicago.pdf).
+An overview of the project can be found in this poster [here](Poster%20-%20Socioeconomic%20Factors%20and%20Crime%20in%20Chicago.pdf).
 
 <p align="center">
   <img src="crime_cover_pic.png" alt="Chicago Streets Police Cordon" title="Chicago Streets" style="text-align:center" width="400px">
